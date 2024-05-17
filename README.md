@@ -1,6 +1,9 @@
 # Benda
 
-Numba-like Python translation to HVM.
+Numba-like Python translation to [HVM]/[Bend].
+
+[HVM]: https://github.com/HigherOrderCo/hvm
+[Bend]: https://github.com/HigherOrderCo/bend
 
 This is in conceptual stage.
 
@@ -16,8 +19,8 @@ class Leaf:
 
 @dataclass
 class Node:
-  left: Tree
-  right: Tree
+  left: 'Tree'
+  right: 'Tree'
 
 Tree = Node | Leaf
 
@@ -28,16 +31,17 @@ Tree = Node | Leaf
 @bend
 def sum_tree(tree: Tree) -> u24:
   match tree:
-    Leaf(value):
+    case Leaf(value=value):
       return value
-    Node(left, right):
+    case Node(left=left, right=right):
       return sum_tree(left) + sum_tree(right)
+    case _:
+      raise TypeError("Invalid type for tree")
 
-
-# You can opt to use Python big integers and other primitives just fine, they
-# will be translated to the equivalent representations automatically by the lib.
+# Alternatively, you can opt to use Python big integers and other primitives,
+# they will be translated to the equivalent representations automatically.
 
 @dataclass
-class PyLeaf:
+class Leaf2:
   value: int
 ```
