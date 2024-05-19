@@ -1,7 +1,8 @@
 # Benda
 
-Numba-like Python translation to [HVM]/[Bend].
+[Numba]-like Python translation to [HVM]/[Bend].
 
+[Numba]: https://numba.pydata.org/
 [HVM]: https://github.com/HigherOrderCo/hvm
 [Bend]: https://github.com/HigherOrderCo/bend
 
