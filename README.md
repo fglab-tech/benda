@@ -46,3 +46,19 @@ def sum_tree(tree: Tree) -> u24:
 class Leaf2:
   value: int
 ```
+
+## Development
+
+- Install Nix with [Determinate Nix Installer]
+
+  ```sh
+  curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+  ```
+
+- You can run `nix develop` to enter a shell with the dependencies installed.
+
+- You can use [`direnv`][direnv] to automatically load the environment when you
+  enter the project directory.
+
+[Determinate Nix Installer]: https://install.determinate.systems
+[direnv]: https://direnv.net
