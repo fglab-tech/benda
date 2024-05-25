@@ -15,6 +15,8 @@
         pkgs = import nixpkgs {
           inherit system overlays;
         };
+
+        python3 = pkgs.python312;
         rust_toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
 
         nativeBuildInputs = [
@@ -24,7 +26,7 @@
           pkgs.clang
           rust_toolchain
           # Python
-          pkgs.python312
+          python3
         ];
 
         dev_packages = [
@@ -46,6 +48,9 @@
           name = "shell";
           inherit nativeBuildInputs;
           buildInputs = dev_packages;
+          shellHook = ''
+            export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${python3}/lib
+          '';
         };
 
         packages.default = naersk'.buildPackage {

@@ -12,7 +12,7 @@ This is in conceptual stage.
 
 ```py
 from dataclasses import dataclass
-from benda import bend, u24
+from benda import bjit, u24
 
 @dataclass
 class Leaf:
@@ -25,11 +25,11 @@ class Node:
 
 Tree = Node | Leaf
 
-# The `bend` decorator will introspect and translate the function to HVM/Bend
+# The `bjit` decorator will introspect and translate the function to HVM/Bend
 # code, replacing it with a wrapper that converts the Python-level types of the
 # inputs and result value, Numba-style.
 
-@bend
+@bjit
 def sum_tree(tree: Tree) -> u24:
   match tree:
     case Leaf(value=value):
@@ -52,7 +52,8 @@ class Leaf2:
 - Install Nix with [Determinate Nix Installer]
 
   ```sh
-  curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+  curl --proto '=https' --tlsv1.2 -sSf -L \
+    https://install.determinate.systems/nix | sh -s -- install
   ```
 
 - You can run `nix develop` to enter a shell with the dependencies installed.

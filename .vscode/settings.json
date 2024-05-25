@@ -1,7 +1,10 @@
 {
   "cSpell.words": [
     "benda",
+    "bjit",
     "Clippy",
+    "dataclass",
+    "dataclasses",
     "nixpkgs",
     "Numba"
   ]
