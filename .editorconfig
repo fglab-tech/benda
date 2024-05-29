@@ -10,3 +10,7 @@ insert_final_newline = true
 
 [*.nix]
 indent_size = 2
+
+# Javascript, TypeScript, JSON etc
+[*.{js,ts,json}]
+indent_size = 2
