@@ -30,6 +30,7 @@
         ];
 
         dev_packages = [
+          pkgs.gnumake
           # GitHub Actions runner
           pkgs.act
           # Build tools
