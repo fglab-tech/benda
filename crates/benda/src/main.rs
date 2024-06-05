@@ -2,8 +2,7 @@ mod parser;
 
 use parser::Parser;
 use pyo3::prelude::*;
-
-use rustpython_parser::{ parse, Mode };
+use rustpython_parser::{parse, Mode};
 
 mod benda_ffi;
 
