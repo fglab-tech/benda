@@ -1,0 +1,17 @@
+[package]
+name = "benda"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "benda"
+crate-type = ["cdylib"]
+
+[dependencies]
+bend-lang = "=0.2.18"
+num-bigint = "0.4.5"
+num-traits = "0.2.19"
+pyo3 = "0.21.2"
+rustpython-parser = "0.3.1"
+indexmap = "2.2.3"
