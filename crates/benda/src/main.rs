@@ -2,7 +2,8 @@ mod parser;
 
 use parser::Parser;
 use pyo3::prelude::*;
-use rustpython_parser::{parse, Mode};
+
+use rustpython_parser::{ parse, Mode };
 
 mod benda_ffi;
 
@@ -15,7 +16,7 @@ fn main() -> PyResult<()> {
     match module {
         rustpython_parser::ast::Mod::Module(mods) => {
             let mut parser = Parser::new(mods.body, 0);
-            parser.parse(&String::from("gen_tree"));
+            parser.parse(&String::from("sum_tree"), &["tree".to_string()]);
         }
         _ => todo!(),
     }
