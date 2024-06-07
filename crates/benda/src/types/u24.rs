@@ -1,6 +1,6 @@
-use std::ops::{ Add, Sub };
+use std::ops::{Add, Sub};
 
-use pyo3::{ pyclass, pymethods };
+use pyo3::{pyclass, pymethods};
 
 #[pyclass(module = "benda_py")]
 #[allow(non_camel_case_types)]
