@@ -1,11 +1,9 @@
 use core::panic;
 
-use bend::{fun::Num, imp};
-
-use pyo3::{
-    types::{PyAnyMethods, PyFloat, PyTypeMethods},
-    Bound, FromPyObject, PyAny, PyTypeCheck, ToPyObject,
-};
+use bend::fun::Num;
+use bend::imp;
+use pyo3::types::{PyAnyMethods, PyFloat, PyTypeMethods};
+use pyo3::{Bound, FromPyObject, PyAny, PyTypeCheck, ToPyObject};
 use tree::{Leaf, Node, Tree};
 
 pub mod f24;
@@ -28,10 +26,17 @@ pub fn extract_inner<'py, T: BendType + PyTypeCheck + FromPyObject<'py>>(
     None
 }
 
-pub fn extract_num(arg: Bound<PyAny>, t_type: BuiltinType) -> Option<imp::Expr> {
+pub fn extract_num(
+    arg: Bound<PyAny>,
+    t_type: BuiltinType,
+) -> Option<imp::Expr> {
     match t_type {
-        BuiltinType::I32 => Some(arg.to_string().parse::<i32>().unwrap().to_bend()),
-        BuiltinType::F32 => Some(arg.to_string().parse::<f32>().unwrap().to_bend()),
+        BuiltinType::I32 => {
+            Some(arg.to_string().parse::<i32>().unwrap().to_bend())
+        }
+        BuiltinType::F32 => {
+            Some(arg.to_string().parse::<f32>().unwrap().to_bend())
+        }
         _ => unreachable!(),
     }
 }
@@ -43,12 +48,20 @@ pub fn extract_type(arg: Bound<PyAny>) -> Option<imp::Expr> {
     let arg_type = BuiltinType::from(name.to_string());
 
     match arg_type {
-        BuiltinType::U24 => Some(extract_inner::<crate::u24>(arg).unwrap().to_bend()),
+        BuiltinType::U24 => {
+            Some(extract_inner::<crate::u24>(arg).unwrap().to_bend())
+        }
         BuiltinType::I32 => extract_num(arg, BuiltinType::I32),
         BuiltinType::F32 => extract_num(arg, BuiltinType::F32),
-        BuiltinType::Tree => Some(extract_inner::<Tree>(arg).unwrap().to_bend()),
-        BuiltinType::Node => Some(extract_inner::<Node>(arg).unwrap().to_bend()),
-        BuiltinType::Leaf => Some(extract_inner::<Leaf>(arg).unwrap().to_bend()),
+        BuiltinType::Tree => {
+            Some(extract_inner::<Tree>(arg).unwrap().to_bend())
+        }
+        BuiltinType::Node => {
+            Some(extract_inner::<Node>(arg).unwrap().to_bend())
+        }
+        BuiltinType::Leaf => {
+            Some(extract_inner::<Leaf>(arg).unwrap().to_bend())
+        }
         _ => panic!(),
     }
 }

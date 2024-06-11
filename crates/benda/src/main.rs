@@ -1,7 +1,6 @@
 mod parser;
 
 use pyo3::prelude::*;
-
 use rustpython_parser::{parse, Mode};
 
 mod benda_ffi;

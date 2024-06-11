@@ -2,15 +2,12 @@ use core::panic;
 use std::vec;
 
 use bend::{fun, imp};
-use pyo3::{
-    pyclass, pymethods,
-    types::{PyAnyMethods, PyTuple, PyTypeMethods},
-    Bound,
-};
+use pyo3::types::{PyAnyMethods, PyTuple, PyTypeMethods};
+use pyo3::{pyclass, pymethods, Bound};
 
+use super::u24::u24;
+use super::BendType;
 use crate::types::extract_inner;
-
-use super::{u24::u24, BendType};
 
 #[derive(Clone, Debug)]
 #[pyclass(module = "benda", name = "Leaf")]

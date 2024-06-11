@@ -1,8 +1,6 @@
-use bend::{
-    diagnostics::{Diagnostics, DiagnosticsConfig},
-    fun::{Book, Term},
-    CompileOpts, RunOpts,
-};
+use bend::diagnostics::{Diagnostics, DiagnosticsConfig};
+use bend::fun::{Book, Term};
+use bend::{CompileOpts, RunOpts};
 
 pub fn run(book: &Book) -> Option<(Term, String, Diagnostics)> {
     let run_opts = RunOpts::default();
