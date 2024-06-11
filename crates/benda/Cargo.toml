@@ -9,9 +9,10 @@ name = "benda"
 crate-type = ["cdylib"]
 
 [dependencies]
-bend-lang = "=0.2.18"
+pyo3 = { version = "0.21.2", features = ["multiple-pymethods"] }
+bend-lang = "0.2.33"
 num-bigint = "0.4.5"
 num-traits = "0.2.19"
-pyo3 = "0.21.2"
 rustpython-parser = "0.3.1"
 indexmap = "2.2.3"
+interner = "0.2.1"

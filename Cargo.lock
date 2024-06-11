@@ -85,12 +85,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3d1d046238990b9cf5bcde22a3fb3584ee5cf65fb2765f454ed428c7a0063da"
 
 [[package]]
-name = "arrayvec"
-version = "0.7.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
-
-[[package]]
 name = "autocfg"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -98,14 +92,14 @@ checksum = "0c4b4d0bd25bd0b74681c0ad21497610ce1b7c91b1022cd21c80c6fbdd9476b0"
 
 [[package]]
 name = "bend-lang"
-version = "0.2.18"
+version = "0.2.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27631b0cdfb5e8e160b53758ba94b8cdfe0549195418bd5449c136e0601a6ae0"
+checksum = "186afcb5140e3967dfeecbed98527a83051bcf946c1df2b9e006a7315fd070c1"
 dependencies = [
  "TSPL",
- "arrayvec",
  "clap",
  "highlight_error",
+ "hvm",
  "indexmap",
  "interner",
  "itertools",
@@ -119,6 +113,7 @@ version = "0.1.0"
 dependencies = [
  "bend-lang",
  "indexmap",
+ "interner",
  "num-bigint",
  "num-traits",
  "pyo3",
@@ -268,10 +263,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
+name = "hermit-abi"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
+
+[[package]]
 name = "highlight_error"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "809e18805660d7b6b2e2b9f316a5099521b5998d5cba4dda11b5157a21aaef03"
+
+[[package]]
+name = "hvm"
+version = "2.0.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32cf1c2a5333c940ab1c5b6c64e0f3242739332446b572b07a87f46753c9f69e"
+dependencies = [
+ "TSPL",
+ "cc",
+ "clap",
+ "highlight_error",
+ "num_cpus",
+]
 
 [[package]]
 name = "indexmap"
@@ -294,6 +308,12 @@ name = "interner"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8c60687056b35a996f2213287048a7092d801b61df5fee3bd5bd9bf6f17a2d0"
+
+[[package]]
+name = "inventory"
+version = "0.3.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f958d3d68f4167080a18141e10381e7634563984a537f2a49a30fd8e53ac5767"
 
 [[package]]
 name = "is-macro"
@@ -464,6 +484,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "num_cpus"
+version = "1.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4161fcb6d602d4d2081af7c3a45852d875a03dd337a6bfdd6e06407b61342a43"
+dependencies = [
+ "hermit-abi",
+ "libc",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -578,6 +608,7 @@ checksum = "a5e00b96a521718e08e03b1a622f01c8a8deb50719335de3f60b3b3950f069d8"
 dependencies = [
  "cfg-if",
  "indoc",
+ "inventory",
  "libc",
  "memoffset",
  "parking_lot",

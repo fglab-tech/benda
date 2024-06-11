@@ -8,81 +8,81 @@ use super::BendType;
 #[pyclass(module = "benda")]
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct u24(u32);
+pub struct i24(i32);
 
-impl BendType for u24 {
+impl BendType for i24 {
     fn to_bend(&self) -> bend::imp::Expr {
         imp::Expr::Num {
-            val: bend::fun::Num::U24(self.0),
+            val: bend::fun::Num::I24(self.0),
         }
     }
 }
 
-impl u24 {
-    const MAX: u32 = 0xffffff;
+impl i24 {
+    const MAX: i32 = 0xffffff;
 
-    pub fn new(value: u32) -> Self {
+    pub fn new(value: i32) -> Self {
         Self(value & Self::MAX)
     }
 
-    pub fn get(self) -> u32 {
+    pub fn get(self) -> i32 {
         self.0
     }
 }
 
-impl std::fmt::Debug for u24 {
+impl std::fmt::Debug for i24 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl std::fmt::Display for u24 {
+impl std::fmt::Display for i24 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl From<u32> for u24 {
-    fn from(value: u32) -> Self {
-        u24::new(value)
+impl From<i32> for i24 {
+    fn from(value: i32) -> Self {
+        i24::new(value)
     }
 }
 
-impl From<u24> for u32 {
-    fn from(val: u24) -> Self {
+impl From<i24> for i32 {
+    fn from(val: i24) -> Self {
         val.0
     }
 }
 
-impl std::ops::Add for u24 {
+impl std::ops::Add for i24 {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
-        u24::new(self.0 + other.0)
+        i24::new(self.0 + other.0)
     }
 }
 
-impl std::ops::Sub for u24 {
+impl std::ops::Sub for i24 {
     type Output = Self;
 
     fn sub(self, other: Self) -> Self {
-        u24::new(self.0 - other.0)
+        i24::new(self.0 - other.0)
     }
 }
 
 #[pymethods]
-impl u24 {
+impl i24 {
     #[new]
-    fn new_py(value: u32) -> Self {
-        u24::new(value)
+    fn new_py(value: i32) -> Self {
+        i24::new(value)
     }
 
     fn __add__(&self, other: &Self) -> Self {
-        u24::add(*self, *other)
+        i24::add(*self, *other)
     }
 
     fn __sub__(&self, other: &Self) -> Self {
-        u24::sub(*self, *other)
+        i24::sub(*self, *other)
     }
 
     fn __str__(&self) -> String {

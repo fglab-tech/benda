@@ -2,17 +2,21 @@
 use core::panic;
 use std::vec;
 
-use bend::fun::{Adt, Book, CtrField, Name, Op, STRINGS};
-use bend::imp::{self, Expr, MatchArm, Stmt};
-use indexmap::IndexMap;
-use num_traits::cast::ToPrimitive;
-use rustpython_parser::ast::{
-    located, CmpOp as rCmpOp, Expr as rExpr, ExprBinOp, Operator as rOperator,
-    Pattern as rPattern, Stmt as rStmt, StmtAssign, StmtMatch,
+use bend::{
+    fun::{self, Adt, Book, CtrField, Name, Op, Rule, STRINGS},
+    imp::{self, Expr, MatchArm, Stmt},
 };
-use rustpython_parser::text_size::TextRange;
+use indexmap::IndexMap;
+use rustpython_parser::ast::{located, ExprBinOp, StmtAssign, StmtMatch};
+
+use rustpython_parser::ast::CmpOp as rCmpOp;
+use rustpython_parser::ast::Expr as rExpr;
+use rustpython_parser::ast::Operator as rOperator;
+use rustpython_parser::ast::Pattern as rPattern;
+use rustpython_parser::ast::Stmt as rStmt;
 
 use crate::benda_ffi::run;
+use num_traits::cast::ToPrimitive;
 
 #[derive(Clone, Debug)]
 enum FromExpr {
@@ -22,6 +26,20 @@ enum FromExpr {
 }
 
 impl FromExpr {
+    pub fn to_expr(&self) -> Option<Expr> {
+        if let FromExpr::Expr(exp) = self {
+            return Some(exp.clone());
+        }
+        None
+    }
+
+    pub fn to_stmt(&self) -> Option<Stmt> {
+        if let FromExpr::Statement(stmt) = self {
+            return Some(stmt.clone());
+        }
+        None
+    }
+
     pub fn get_var_name(&self) -> Option<Name> {
         if let FromExpr::Expr(Expr::Var { nam }) = self {
             Some(nam.clone())
@@ -44,29 +62,30 @@ struct Context {
 }
 
 pub struct Parser {
-    statements: Vec<rStmt<TextRange>>,
+    statements: Vec<rStmt>,
     book: Book,
     definitions: Vec<imp::Definition>,
     ctx: Option<Context>,
+    index: usize,
+    fun_args: Vec<(String, imp::Expr)>,
 }
 
 impl Parser {
-    pub fn new(statements: Vec<rStmt<TextRange>>, _index: usize) -> Self {
+    pub fn new(statements: Vec<rStmt>, index: usize, fun_args: Vec<(String, imp::Expr)>) -> Self {
         Self {
             statements,
-            //book: bend::fun::Book::builtins(),
-            book: Book::default(),
+            book: bend::fun::Book::builtins(),
             definitions: vec![],
+            index,
             ctx: None,
+            fun_args,
         }
     }
 
-    fn parse_expr_type(&self, expr: rExpr<TextRange>) -> Option<FromExpr> {
+    fn parse_expr_type(&self, expr: rExpr) -> Option<FromExpr> {
         match expr {
             rExpr::Attribute(att) => {
-                if let Some(lib) =
-                    self.parse_expr_type(*att.value).unwrap().get_var_name()
-                {
+                if let Some(lib) = self.parse_expr_type(*att.value).unwrap().get_var_name() {
                     let fun = att.attr.to_string();
                     if lib.to_string() == "benda" && fun == "switch" {
                         return Some(FromExpr::Expr(Expr::Call {
@@ -99,10 +118,8 @@ impl Parser {
                     rCmpOp::NotIn => todo!(),
                 };
 
-                if let (FromExpr::Expr(left), FromExpr::Expr(right)) =
-                    (left, right)
-                {
-                    return Some(FromExpr::Expr(Expr::Bin {
+                if let (FromExpr::Expr(left), FromExpr::Expr(right)) = (left, right) {
+                    return Some(FromExpr::Expr(Expr::Opr {
                         op,
                         lhs: Box::new(left),
                         rhs: Box::new(right),
@@ -126,13 +143,13 @@ impl Parser {
                     }))
                 }
                 located::Constant::Bytes(_) => todo!(),
-                located::Constant::Int(val) => {
-                    Some(FromExpr::Expr(imp::Expr::Num {
-                        val: bend::fun::Num::U24(val.to_u32().unwrap()),
-                    }))
-                }
+                located::Constant::Int(val) => Some(FromExpr::Expr(imp::Expr::Num {
+                    val: bend::fun::Num::U24(val.to_u32().unwrap()),
+                })),
                 located::Constant::Tuple(_) => todo!(),
-                located::Constant::Float(_) => todo!(),
+                located::Constant::Float(val) => Some(FromExpr::Expr(imp::Expr::Num {
+                    val: bend::fun::Num::F24(val.to_f32().unwrap()),
+                })),
                 located::Constant::Complex { real: _, imag: _ } => todo!(),
                 located::Constant::Ellipsis => todo!(),
             },
@@ -144,11 +161,7 @@ impl Parser {
                     if ctx.now == CurContext::Match {
                         for var in &ctx.vars {
                             if *var == n.id.to_string() {
-                                name = format!(
-                                    "{}.{}",
-                                    ctx.subs.first().unwrap(),
-                                    var
-                                );
+                                name = format!("{}.{}", ctx.subs.first().unwrap(), var);
                             }
                         }
                     }
@@ -175,8 +188,10 @@ impl Parser {
                         }
                     }
 
+                    println!("CTR FIELD {:?}", nam);
+
                     if let Some(val) = self.find_in_ctrs(nam) {
-                        return Some(FromExpr::Expr(imp::Expr::Constructor {
+                        return Some(FromExpr::Expr(imp::Expr::Ctr {
                             name: val.clone(),
                             args,
                             kwargs: vec![],
@@ -196,7 +211,7 @@ impl Parser {
         }
     }
 
-    fn parse_bin_op(&self, bin: ExprBinOp<TextRange>) -> Option<FromExpr> {
+    fn parse_bin_op(&self, bin: ExprBinOp) -> Option<FromExpr> {
         // TODO(#5): Treat case where expr type returns None
 
         let left: FromExpr = self.parse_expr_type(*bin.left).unwrap();
@@ -218,9 +233,7 @@ impl Parser {
             rOperator::FloorDiv => todo!(),
         };
 
-        if let (Some(nam_l), Some(nam_r)) =
-            (left.get_var_name(), right.get_var_name())
-        {
+        if let (Some(nam_l), Some(nam_r)) = (left.get_var_name(), right.get_var_name()) {
             let adt_l = self.book.adts.get(&nam_l);
             let adt_r = self.book.adts.get(&nam_r);
 
@@ -244,13 +257,12 @@ impl Parser {
                     nam: nam_r.clone(),
                     rec: false,
                 });
+                return Some(FromExpr::CtrField(fields));
             }
-
-            return Some(FromExpr::CtrField(fields));
         }
 
         if let (FromExpr::Expr(left), FromExpr::Expr(right)) = (left, right) {
-            let operation = imp::Expr::Bin {
+            let operation = imp::Expr::Opr {
                 op,
                 lhs: Box::new(left),
                 rhs: Box::new(right),
@@ -261,17 +273,14 @@ impl Parser {
         todo!()
     }
 
-    fn parse_assign(
-        &mut self,
-        assign: &StmtAssign<TextRange>,
-    ) -> Option<FromExpr> {
+    fn parse_assign(&mut self, assign: &StmtAssign) -> Option<FromExpr> {
         self.parse_expr_type(*assign.value.clone())
     }
 
     fn parse_match(
         &mut self,
-        m: &StmtMatch<TextRange>,
-        stmts: &Vec<rStmt<TextRange>>,
+        m: &StmtMatch,
+        stmts: &Vec<rStmt>,
         index: &usize,
     ) -> Option<imp::Stmt> {
         let mut arms: Vec<imp::MatchArm> = vec![];
@@ -280,19 +289,15 @@ impl Parser {
         for case in &m.cases {
             let pat = match &case.pattern {
                 rPattern::MatchValue(val) => {
-                    let expr =
-                        self.parse_expr_type(*val.value.clone()).unwrap();
+                    let expr = self.parse_expr_type(*val.value.clone()).unwrap();
                     match expr {
                         FromExpr::Expr(imp::Expr::Var { nam }) => Some(nam),
                         _ => None,
                     }
                 }
-                rPattern::MatchSingleton(_) => todo!(),
-                rPattern::MatchSequence(_) => todo!(),
-                rPattern::MatchMapping(_) => todo!(),
+
                 rPattern::MatchClass(class) => {
-                    let expr =
-                        self.parse_expr_type(*class.cls.clone()).unwrap();
+                    let expr = self.parse_expr_type(*class.cls.clone()).unwrap();
 
                     for val in class.patterns.clone() {
                         if let rPattern::MatchAs(match_as) = val {
@@ -307,6 +312,9 @@ impl Parser {
                         _ => None,
                     }
                 }
+                rPattern::MatchSingleton(_) => todo!(),
+                rPattern::MatchSequence(_) => todo!(),
+                rPattern::MatchMapping(_) => todo!(),
                 rPattern::MatchStar(_) => todo!(),
                 rPattern::MatchAs(_) => todo!(),
                 rPattern::MatchOr(_) => todo!(),
@@ -335,9 +343,7 @@ impl Parser {
 
         self.ctx = None;
 
-        if let Some(FromExpr::Expr(subj)) =
-            self.parse_expr_type(*m.subject.clone())
-        {
+        if let Some(FromExpr::Expr(subj)) = self.parse_expr_type(*m.subject.clone()) {
             let nxt = self.parse_vec(stmts, index + 1);
 
             let my_nxt: Option<Box<Stmt>> = match nxt {
@@ -352,9 +358,11 @@ impl Parser {
 
             let ret_match = imp::Stmt::Match {
                 arg: Box::new(subj.clone()),
-                bind: name,
+                bnd: name,
                 arms,
                 nxt: my_nxt,
+                with_bnd: vec![],
+                with_arg: vec![],
             };
 
             return Some(ret_match);
@@ -366,7 +374,7 @@ impl Parser {
         &mut self,
         name: &String,
         nxt: &Option<FromExpr>,
-        stmts: &[rStmt<TextRange>],
+        stmts: &[rStmt],
         index: &usize,
     ) -> Option<FromExpr> {
         let mut arms: Vec<imp::Stmt> = vec![];
@@ -379,12 +387,10 @@ impl Parser {
                 }
             }
 
-            if let Some(FromExpr::Expr(expr)) =
-                self.parse_expr_type(*m.subject.clone())
-            {
+            if let Some(FromExpr::Expr(expr)) = self.parse_expr_type(*m.subject.clone()) {
                 return Some(FromExpr::Statement(imp::Stmt::Switch {
                     arg: Box::new(expr),
-                    bind: Some(Name::new(name)),
+                    bnd: Some(Name::new(name)),
                     arms,
                     nxt: nxt.clone().map(|n| {
                         if let FromExpr::Statement(n) = n {
@@ -393,6 +399,8 @@ impl Parser {
 
                         todo!()
                     }),
+                    with_bnd: vec![],
+                    with_arg: vec![],
                 }));
             }
         }
@@ -401,7 +409,7 @@ impl Parser {
 
     fn find_in_ctrs(&self, nam: &Name) -> Option<Name> {
         for ctr in self.book.ctrs.clone() {
-            for ctr_name in ctr.0.split("/") {
+            for ctr_name in ctr.0.split('/') {
                 if nam.to_string() == *ctr_name.to_string() {
                     return Some(ctr.0);
                 }
@@ -410,11 +418,7 @@ impl Parser {
         None
     }
 
-    fn parse_vec(
-        &mut self,
-        stmts: &Vec<rStmt<TextRange>>,
-        index: usize,
-    ) -> Option<FromExpr> {
+    fn parse_vec(&mut self, stmts: &Vec<rStmt>, index: usize) -> Option<FromExpr> {
         let stmt = match stmts.get(index) {
             Some(s) => s,
             None => {
@@ -444,20 +448,18 @@ impl Parser {
                         }) = value.clone()
                         {
                             if let Expr::Var { nam } = *fun {
-                                if &nam.to_string() == ctx.subs.first().unwrap()
-                                {
+                                if &nam.to_string() == ctx.subs.first().unwrap() {
                                     if let FromExpr::Expr(e) = value.clone() {
-                                        return Some(FromExpr::Statement(
-                                            Stmt::Return { term: Box::new(e) },
-                                        ));
+                                        return Some(FromExpr::Statement(Stmt::Return {
+                                            term: Box::new(e),
+                                        }));
                                     }
                                 }
                             }
                         }
                     }
 
-                    if ctx.now == CurContext::Main && !ctx.vars.contains(&name)
-                    {
+                    if ctx.now == CurContext::Main && !ctx.vars.contains(&name) {
                         return self.parse_vec(stmts, index + 1);
                     }
                 }
@@ -472,8 +474,7 @@ impl Parser {
                 {
                     if let Expr::Var { nam } = *fun {
                         if nam.to_string() == "switch" {
-                            return self
-                                .parse_switch(&name, &nxt, stmts, &index);
+                            return self.parse_switch(&name, &nxt, stmts, &index);
                         }
                     }
                 }
@@ -532,6 +533,8 @@ impl Parser {
                         }));
                     }
 
+                    println!("{:?}", term);
+
                     todo!()
                 }
                 None => None,
@@ -549,14 +552,10 @@ impl Parser {
                             } = call.clone()
                             {
                                 if let imp::Expr::Var { nam } = *fun {
-                                    if nam.to_string()
-                                        == *ctx.subs.first().unwrap()
-                                    {
-                                        return Some(FromExpr::Statement(
-                                            Stmt::Return {
-                                                term: Box::new(call),
-                                            },
-                                        ));
+                                    if nam.to_string() == *ctx.subs.first().unwrap() {
+                                        return Some(FromExpr::Statement(Stmt::Return {
+                                            term: Box::new(call),
+                                        }));
                                     }
                                 }
                             }
@@ -594,12 +593,7 @@ impl Parser {
                         _ = e.insert(nam.clone());
                     }
                     indexmap::map::Entry::Occupied(e) => {
-                        if self
-                            .book
-                            .adts
-                            .get(e.get())
-                            .is_some_and(|adt| adt.builtin)
-                        {
+                        if self.book.adts.get(e.get()).is_some_and(|adt| adt.builtin) {
                             panic!(
                                 "{} is a built-in constructor and should not be overridden.",
                                 e.key()
@@ -614,24 +608,37 @@ impl Parser {
         self.book.adts.insert(nam.clone(), adt);
     }
 
-    pub fn parse_main(
-        &mut self,
-        fun_name: &str,
-        py_args: &[String],
-    ) -> Option<imp::Definition> {
+    pub fn parse_main(&mut self, fun_name: &str, py_args: &[String]) -> Option<imp::Definition> {
         self.ctx = Some(Context {
             now: CurContext::Main,
             vars: py_args.to_vec(),
             subs: vec![fun_name.to_string()],
         });
 
-        for (index, stmt) in self.statements.clone().iter().enumerate() {
+        for (name, expr) in &self.fun_args {
+            let u_type = expr.clone().to_fun();
+
+            let nam = Name::new(name.to_string());
+
+            let def = fun::Definition {
+                name: nam.clone(),
+                rules: vec![Rule {
+                    pats: vec![],
+                    body: u_type,
+                }],
+                builtin: false,
+            };
+
+            self.book.defs.insert(nam, def);
+        }
+
+        for (index, stmt) in self.statements.clone().iter().skip(self.index).enumerate() {
             if let rStmt::Assign(assi) = stmt {
                 if let rExpr::Name(target) = assi.targets.first().unwrap() {
                     if py_args.contains(target.id.as_ref()) {
-                        let new_body =
-                            self.parse_vec(&self.statements.clone(), index);
-                        if let Some(FromExpr::Statement(st)) = new_body {
+                        let body = self.parse_vec(&self.statements.clone(), index);
+
+                        if let Some(FromExpr::Statement(st)) = body {
                             return Some(imp::Definition {
                                 name: Name::new("main"),
                                 params: vec![],
@@ -647,7 +654,38 @@ impl Parser {
                             if call.args.is_empty() {
                                 panic!("The function must have arguments for Bend can run it.");
                             } else {
-                                todo!();
+                                let new_body = self.parse_vec(&self.statements.clone(), index);
+
+                                if let Some(FromExpr::Statement(st)) = new_body {
+                                    return Some(imp::Definition {
+                                        name: Name::new("main"),
+                                        params: vec![],
+                                        body: st,
+                                    });
+                                }
+
+                                let mut new_args: Vec<Expr> = vec![];
+
+                                for arg in self.fun_args.clone() {
+                                    new_args.push(Expr::Var {
+                                        nam: Name::new(arg.0),
+                                    })
+                                }
+
+                                let first = Stmt::Return {
+                                    term: Box::new(Expr::Call {
+                                        fun: Box::new(imp::Expr::Var {
+                                            nam: Name::new(fun_name.to_string()),
+                                        }),
+                                        args: new_args,
+                                        kwargs: vec![],
+                                    }),
+                                };
+                                return Some(imp::Definition {
+                                    name: Name::new("main"),
+                                    params: vec![],
+                                    body: first,
+                                });
                             }
                         }
                     }
@@ -696,13 +734,9 @@ impl Parser {
 
                         if let Some(FromExpr::CtrField(ctr)) = body {
                             for ct in ctr.clone() {
-                                let new_ctr =
-                                    self.book.ctrs.swap_remove(&ct.nam);
+                                let new_ctr = self.book.ctrs.swap_remove(&ct.nam);
 
-                                let new_adt = self
-                                    .book
-                                    .adts
-                                    .swap_remove(&new_ctr.unwrap());
+                                let new_adt = self.book.adts.swap_remove(&new_ctr.unwrap());
 
                                 let mut ctrs: Vec<CtrField> = vec![];
                                 for ca in new_adt.unwrap().ctrs.values() {
@@ -742,9 +776,7 @@ impl Parser {
                             match stmt {
                                 rStmt::AnnAssign(assign) => {
                                     let mut target = String::default();
-                                    if let rExpr::Name(nam) =
-                                        *assign.target.clone()
-                                    {
+                                    if let rExpr::Name(nam) = *assign.target.clone() {
                                         target = nam.id.to_string();
                                     }
 
@@ -760,10 +792,7 @@ impl Parser {
                                             vec.push(ctr_field);
                                         }
                                         None => {
-                                            adt.ctrs.insert(
-                                                new_name.clone(),
-                                                vec![ctr_field],
-                                            );
+                                            adt.ctrs.insert(new_name.clone(), vec![ctr_field]);
                                         }
                                     }
                                 }
