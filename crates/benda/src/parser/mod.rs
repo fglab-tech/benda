@@ -7,8 +7,9 @@ use bend::imp::{self, Expr, MatchArm, Stmt};
 use indexmap::IndexMap;
 use num_traits::cast::ToPrimitive;
 use rustpython_parser::ast::{
-    located, CmpOp as rCmpOp, Expr as rExpr, ExprBinOp, Operator as rOperator,
-    Pattern as rPattern, Stmt as rStmt, StmtAssign, StmtMatch,
+    located, CmpOp as rCmpOp, Expr as rExpr, ExprAttribute, ExprBinOp,
+    Operator as rOperator, Pattern as rPattern, Stmt as rStmt, StmtAssign,
+    StmtClassDef, StmtExpr, StmtFunctionDef, StmtIf, StmtMatch,
 };
 
 use crate::benda_ffi::run;
@@ -81,22 +82,29 @@ impl Parser {
         }
     }
 
+    fn parse_switch_expr(&self, att: ExprAttribute) -> Option<FromExpr> {
+        if let Some(lib) =
+            self.parse_expr_type(*att.value).unwrap().get_var_name()
+        {
+            let fun = att.attr.to_string();
+            if lib.to_string() == "benda" && fun == "switch" {
+                return Some(FromExpr::Expr(Expr::Call {
+                    fun: Box::new(Expr::Var {
+                        nam: Name::new("switch"),
+                    }),
+                    args: vec![],
+                    kwargs: vec![],
+                }));
+            }
+        }
+        None
+    }
+
     fn parse_expr_type(&self, expr: rExpr) -> Option<FromExpr> {
         match expr {
             rExpr::Attribute(att) => {
-                if let Some(lib) =
-                    self.parse_expr_type(*att.value).unwrap().get_var_name()
-                {
-                    let fun = att.attr.to_string();
-                    if lib.to_string() == "benda" && fun == "switch" {
-                        return Some(FromExpr::Expr(Expr::Call {
-                            fun: Box::new(Expr::Var {
-                                nam: Name::new("switch"),
-                            }),
-                            args: vec![],
-                            kwargs: vec![],
-                        }));
-                    }
+                if let Some(switch) = self.parse_switch_expr(att) {
+                    return Some(switch);
                 }
                 None
             }
@@ -199,8 +207,6 @@ impl Parser {
                         }
                     }
 
-                    println!("CTR FIELD {:?}", nam);
-
                     if let Some(val) = self.find_in_ctrs(nam) {
                         return Some(FromExpr::Expr(imp::Expr::Ctr {
                             name: val.clone(),
@@ -222,28 +228,11 @@ impl Parser {
         }
     }
 
-    fn parse_bin_op(&self, bin: ExprBinOp) -> Option<FromExpr> {
-        // TODO(#5): Treat case where expr type returns None
-
-        let left: FromExpr = self.parse_expr_type(*bin.left).unwrap();
-        let right: FromExpr = self.parse_expr_type(*bin.right).unwrap();
-
-        let op: Op = match bin.op {
-            rOperator::Add => Op::ADD,
-            rOperator::Sub => Op::SUB,
-            rOperator::Mult => Op::MUL,
-            rOperator::MatMult => todo!(),
-            rOperator::Div => Op::DIV,
-            rOperator::Mod => todo!(),
-            rOperator::Pow => Op::POW,
-            rOperator::LShift => Op::SHL,
-            rOperator::RShift => Op::SHR,
-            rOperator::BitOr => Op::OR,
-            rOperator::BitXor => Op::XOR,
-            rOperator::BitAnd => Op::AND,
-            rOperator::FloorDiv => todo!(),
-        };
-
+    fn parse_adt_create(
+        &self,
+        left: &FromExpr,
+        right: &FromExpr,
+    ) -> Option<FromExpr> {
         if let (Some(nam_l), Some(nam_r)) =
             (left.get_var_name(), right.get_var_name())
         {
@@ -272,6 +261,35 @@ impl Parser {
                 });
                 return Some(FromExpr::CtrField(fields));
             }
+        }
+
+        None
+    }
+
+    fn parse_bin_op(&self, bin: ExprBinOp) -> Option<FromExpr> {
+        // TODO(#5): Treat case where expr type returns None
+
+        let left: FromExpr = self.parse_expr_type(*bin.left).unwrap();
+        let right: FromExpr = self.parse_expr_type(*bin.right).unwrap();
+
+        let op: Op = match bin.op {
+            rOperator::Add => Op::ADD,
+            rOperator::Sub => Op::SUB,
+            rOperator::Mult => Op::MUL,
+            rOperator::MatMult => todo!(),
+            rOperator::Div => Op::DIV,
+            rOperator::Mod => todo!(),
+            rOperator::Pow => Op::POW,
+            rOperator::LShift => Op::SHL,
+            rOperator::RShift => Op::SHR,
+            rOperator::BitOr => Op::OR,
+            rOperator::BitXor => Op::XOR,
+            rOperator::BitAnd => Op::AND,
+            rOperator::FloorDiv => todo!(),
+        };
+
+        if let Some(adt_op) = self.parse_adt_create(&left, &right) {
+            return Some(adt_op);
         }
 
         if let (FromExpr::Expr(left), FromExpr::Expr(right)) = (left, right) {
@@ -437,6 +455,164 @@ impl Parser {
         None
     }
 
+    fn parse_main_call(
+        &mut self,
+        value: &FromExpr,
+        name: &String,
+        stmts: &Vec<rStmt>,
+        index: usize,
+    ) -> Option<FromExpr> {
+        if let Some(ctx) = &self.ctx {
+            if ctx.now == CurContext::Main {
+                if let FromExpr::Expr(Expr::Call {
+                    fun,
+                    args: _,
+                    kwargs: _,
+                }) = value.clone()
+                {
+                    if let Expr::Var { nam } = *fun {
+                        if &nam.to_string() == ctx.subs.first().unwrap() {
+                            if let FromExpr::Expr(e) = value.clone() {
+                                return Some(FromExpr::Statement(
+                                    Stmt::Return { term: Box::new(e) },
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+
+            if ctx.now == CurContext::Main && !ctx.vars.contains(&name) {
+                return self.parse_vec(stmts, index + 1);
+            }
+        }
+        None
+    }
+
+    fn parse_if(
+        &mut self,
+        stmt_if: &StmtIf,
+        stmts: &Vec<rStmt>,
+        index: usize,
+    ) -> Option<FromExpr> {
+        let cond = self.parse_expr_type(*stmt_if.test.clone());
+        let then = self.parse_vec(&stmt_if.body, 0);
+        let otherwise = self.parse_vec(&stmt_if.orelse, 0);
+
+        let nxt = self.parse_vec(stmts, index + 1);
+
+        let b_nxt = match nxt {
+            Some(FromExpr::Statement(nxt)) => Some(Box::new(nxt)),
+            _ => None,
+        };
+
+        match (cond, then, otherwise, b_nxt) {
+            (
+                Some(FromExpr::Expr(cond)),
+                Some(FromExpr::Statement(then)),
+                Some(FromExpr::Statement(otherwise)),
+                b_nxt,
+            ) => Some(FromExpr::Statement(Stmt::If {
+                cond: Box::new(cond),
+                then: Box::new(then),
+                otherwise: Box::new(otherwise),
+                nxt: b_nxt,
+            })),
+            (_, _, _, _) => {
+                panic!("If Statement must have an else.")
+            }
+        }
+    }
+
+    fn parse_stmt_expr(
+        &mut self,
+        expr: &StmtExpr,
+        stmts: &Vec<rStmt>,
+        index: usize,
+    ) -> Option<FromExpr> {
+        if let Some(ctx) = &self.ctx {
+            if ctx.now == CurContext::Main {
+                let val = self.parse_expr_type(*expr.value.clone());
+
+                if let Some(FromExpr::Expr(call)) = val {
+                    if let Expr::Call {
+                        fun,
+                        args: _,
+                        kwargs: _,
+                    } = call.clone()
+                    {
+                        if let imp::Expr::Var { nam } = *fun {
+                            if nam.to_string() == *ctx.subs.first().unwrap() {
+                                return Some(FromExpr::Statement(
+                                    Stmt::Return {
+                                        term: Box::new(call),
+                                    },
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    fn parse_assign_stmt(
+        &mut self,
+        assign: &StmtAssign,
+        stmts: &Vec<rStmt>,
+        index: usize,
+    ) -> Option<FromExpr> {
+        let value = self.parse_assign(assign).unwrap();
+        let name = assign
+            .targets
+            .first()
+            .unwrap()
+            .clone()
+            .name_expr()
+            .unwrap()
+            .id
+            .to_string();
+
+        if let Some(main_call) =
+            self.parse_main_call(&value, &name, stmts, index)
+        {
+            return Some(main_call);
+        }
+
+        let nxt = self.parse_vec(stmts, index + 1);
+
+        if let FromExpr::Expr(Expr::Call {
+            fun,
+            args: _,
+            kwargs: _,
+        }) = value.clone()
+        {
+            if let Expr::Var { nam } = *fun {
+                if nam.to_string() == "switch" {
+                    return self.parse_switch(&name, &nxt, stmts, &index);
+                }
+            }
+        }
+
+        if let FromExpr::Expr(val) = value {
+            return Some(FromExpr::Statement(imp::Stmt::Assign {
+                pat: imp::AssignPattern::Var(Name::new(name)),
+                val: Box::new(val),
+                nxt: nxt.map(|n| {
+                    if let FromExpr::Statement(n) = n {
+                        return Box::new(n);
+                    }
+
+                    todo!()
+                }),
+            }));
+        }
+
+        Some(value)
+    }
+
     fn parse_vec(
         &mut self,
         stmts: &Vec<rStmt>,
@@ -451,105 +627,9 @@ impl Parser {
 
         match stmt {
             rStmt::Assign(assign) => {
-                let value = self.parse_assign(assign).unwrap();
-                let name = assign
-                    .targets
-                    .first()
-                    .unwrap()
-                    .clone()
-                    .name_expr()
-                    .unwrap()
-                    .id
-                    .to_string();
-
-                if let Some(ctx) = &self.ctx {
-                    if ctx.now == CurContext::Main {
-                        if let FromExpr::Expr(Expr::Call {
-                            fun,
-                            args: _,
-                            kwargs: _,
-                        }) = value.clone()
-                        {
-                            if let Expr::Var { nam } = *fun {
-                                if &nam.to_string() == ctx.subs.first().unwrap()
-                                {
-                                    if let FromExpr::Expr(e) = value.clone() {
-                                        return Some(FromExpr::Statement(
-                                            Stmt::Return { term: Box::new(e) },
-                                        ));
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if ctx.now == CurContext::Main && !ctx.vars.contains(&name)
-                    {
-                        return self.parse_vec(stmts, index + 1);
-                    }
-                }
-
-                let nxt = self.parse_vec(stmts, index + 1);
-
-                if let FromExpr::Expr(Expr::Call {
-                    fun,
-                    args: _,
-                    kwargs: _,
-                }) = value.clone()
-                {
-                    if let Expr::Var { nam } = *fun {
-                        if nam.to_string() == "switch" {
-                            return self
-                                .parse_switch(&name, &nxt, stmts, &index);
-                        }
-                    }
-                }
-
-                if let FromExpr::Expr(val) = value {
-                    return Some(FromExpr::Statement(imp::Stmt::Assign {
-                        pat: imp::AssignPattern::Var(Name::new(name)),
-                        val: Box::new(val),
-                        nxt: nxt.map(|n| {
-                            if let FromExpr::Statement(n) = n {
-                                return Box::new(n);
-                            }
-
-                            todo!()
-                        }),
-                    }));
-                }
-
-                Some(value)
+                self.parse_assign_stmt(assign, stmts, index)
             }
-            rStmt::If(stmt_if) => {
-                let cond = self.parse_expr_type(*stmt_if.test.clone());
-                let then = self.parse_vec(&stmt_if.body, 0);
-                let otherwise = self.parse_vec(&stmt_if.orelse, 0);
-
-                let nxt = self.parse_vec(stmts, index + 1);
-
-                let b_nxt = match nxt {
-                    Some(FromExpr::Statement(nxt)) => Some(Box::new(nxt)),
-                    _ => None,
-                };
-
-                match (cond, then, otherwise, b_nxt) {
-                    (
-                        Some(FromExpr::Expr(cond)),
-                        Some(FromExpr::Statement(then)),
-                        Some(FromExpr::Statement(otherwise)),
-                        b_nxt,
-                    ) => Some(FromExpr::Statement(Stmt::If {
-                        cond: Box::new(cond),
-                        then: Box::new(then),
-                        otherwise: Box::new(otherwise),
-                        nxt: b_nxt,
-                    })),
-                    (_, _, _, _) => {
-                        panic!("If Statement must have an else.")
-                    }
-                }
-            }
+            rStmt::If(stmt_if) => self.parse_if(stmt_if, stmts, index),
             rStmt::Return(r) => match &r.value {
                 Some(val) => {
                     let term = self.parse_expr_type(*val.clone()).unwrap();
@@ -559,47 +639,15 @@ impl Parser {
                         }));
                     }
 
-                    println!("{:?}", term);
-
                     todo!()
                 }
                 None => None,
             },
-            rStmt::Expr(expr) => {
-                if let Some(ctx) = &self.ctx {
-                    if ctx.now == CurContext::Main {
-                        let val = self.parse_expr_type(*expr.value.clone());
-
-                        if let Some(FromExpr::Expr(call)) = val {
-                            if let Expr::Call {
-                                fun,
-                                args: _,
-                                kwargs: _,
-                            } = call.clone()
-                            {
-                                if let imp::Expr::Var { nam } = *fun {
-                                    if nam.to_string()
-                                        == *ctx.subs.first().unwrap()
-                                    {
-                                        return Some(FromExpr::Statement(
-                                            Stmt::Return {
-                                                term: Box::new(call),
-                                            },
-                                        ));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                None
-            }
+            rStmt::Expr(expr) => self.parse_stmt_expr(expr, stmts, index),
             rStmt::Match(m) => {
                 if let Some(val) = self.parse_match(m, stmts, &index) {
                     return Some(FromExpr::Statement(val));
                 }
-
                 None
             }
             _ => None,
@@ -643,17 +691,8 @@ impl Parser {
         self.book.adts.insert(nam.clone(), adt);
     }
 
-    pub fn parse_main(
-        &mut self,
-        fun_name: &str,
-        py_args: &[String],
-    ) -> Option<imp::Definition> {
-        self.ctx = Some(Context {
-            now: CurContext::Main,
-            vars: py_args.to_vec(),
-            subs: vec![fun_name.to_string()],
-        });
-
+    // Creates a Bend Definition for each argument for the annotaded function.
+    fn parse_fun_args(&mut self) {
         for (name, expr) in &self.fun_args {
             let u_type = expr.clone().to_fun();
 
@@ -670,6 +709,22 @@ impl Parser {
 
             self.book.defs.insert(nam, def);
         }
+    }
+
+    // This function searchs for the Call of the annotaded function.
+    // It uses the Call to create a Bend main.
+    pub fn parse_main(
+        &mut self,
+        fun_name: &str,
+        py_args: &[String],
+    ) -> Option<imp::Definition> {
+        self.ctx = Some(Context {
+            now: CurContext::Main,
+            vars: py_args.to_vec(),
+            subs: vec![fun_name.to_string()],
+        });
+
+        self.parse_fun_args();
 
         for (index, stmt) in
             self.statements.clone().iter().skip(self.index).enumerate()
@@ -742,127 +797,142 @@ impl Parser {
         None
     }
 
-    pub fn parse(&mut self, fun: &str, py_args: &[String]) -> String {
-        for stmt in self.statements.clone() {
-            match stmt {
-                rStmt::FunctionDef(fun_def) => {
-                    let args = *fun_def.args;
-                    let mut names: Vec<Name> = vec![];
-
-                    for arg in args.args {
-                        names.push(Name::new(arg.def.arg.to_string()));
-                    }
-
-                    let expr = self.parse_vec(&fun_def.body, 0);
-
-                    if let Some(FromExpr::Statement(e)) = expr {
-                        let def = imp::Definition {
-                            name: Name::new(fun_def.name.to_string()),
-                            params: names,
-                            body: e,
-                        };
-                        self.definitions.push(def);
-                    }
+    fn parse_class_def(&mut self, class: &StmtClassDef) {
+        let is_dataclass = class.decorator_list.iter().any(|exp| {
+            if let rExpr::Name(nam) = exp {
+                if nam.id.to_string() == "dataclass" {
+                    return true;
                 }
-                rStmt::Assign(assign) => {
-                    let iden = assign.targets.first().unwrap();
+            }
+            false
+        });
 
-                    let name: String;
+        let iden = class.name.to_string();
+        let mut adt = Adt {
+            ctrs: IndexMap::new(),
+            builtin: false,
+        };
 
-                    if let rExpr::Name(iden) = iden {
-                        name = iden.id.to_string();
-                        let mut adt = Adt {
-                            ctrs: IndexMap::new(),
-                            builtin: false,
+        if is_dataclass {
+            for stmt in &class.body {
+                match stmt {
+                    rStmt::AnnAssign(assign) => {
+                        let mut target = String::default();
+                        if let rExpr::Name(nam) = *assign.target.clone() {
+                            target = nam.id.to_string();
+                        }
+
+                        let ctr_field = CtrField {
+                            nam: Name::new(target),
+                            rec: true,
                         };
 
-                        let body = self.parse_expr_type(*assign.value);
+                        let new_name = Name::new(iden.to_string());
 
-                        if let Some(FromExpr::CtrField(ctr)) = body {
-                            for ct in ctr.clone() {
-                                let new_ctr =
-                                    self.book.ctrs.swap_remove(&ct.nam);
-
-                                let new_adt = self
-                                    .book
-                                    .adts
-                                    .swap_remove(&new_ctr.unwrap());
-
-                                let mut ctrs: Vec<CtrField> = vec![];
-                                for ca in new_adt.unwrap().ctrs.values() {
-                                    for i in ca {
-                                        ctrs.push(i.clone());
-                                    }
-                                }
-
-                                adt.ctrs.insert(
-                                    Name::new(format!("{}/{}", name, ct.nam)),
-                                    ctrs.clone(),
-                                );
+                        match adt.ctrs.get_mut(&new_name) {
+                            Some(vec) => {
+                                vec.push(ctr_field);
+                            }
+                            None => {
+                                adt.ctrs
+                                    .insert(new_name.clone(), vec![ctr_field]);
                             }
                         }
-
-                        self.add_adt(Name::new(name), adt);
                     }
+                    _ => todo!(),
                 }
-                rStmt::ClassDef(class) => {
-                    let is_dataclass = class.decorator_list.iter().any(|exp| {
-                        if let rExpr::Name(nam) = exp {
-                            if nam.id.to_string() == "dataclass" {
-                                return true;
-                            }
+            }
+            self.add_adt(Name::new(iden.clone()), adt);
+        }
+    }
+
+    fn parse_type_alias(&mut self, assign: &StmtAssign) {
+        let iden = assign.targets.first().unwrap();
+
+        let name: String;
+
+        if let rExpr::Name(iden) = iden {
+            name = iden.id.to_string();
+            let mut adt = Adt {
+                ctrs: IndexMap::new(),
+                builtin: false,
+            };
+
+            let body = self.parse_expr_type(*assign.value.clone());
+
+            if let Some(FromExpr::CtrField(ctr)) = body {
+                for ct in ctr.clone() {
+                    let new_ctr = self.book.ctrs.swap_remove(&ct.nam);
+
+                    let new_adt = self.book.adts.swap_remove(&new_ctr.unwrap());
+
+                    let mut ctrs: Vec<CtrField> = vec![];
+                    for ca in new_adt.unwrap().ctrs.values() {
+                        for i in ca {
+                            ctrs.push(i.clone());
                         }
-                        false
-                    });
-
-                    let iden = class.name.to_string();
-                    let mut adt = Adt {
-                        ctrs: IndexMap::new(),
-                        builtin: false,
-                    };
-
-                    if is_dataclass {
-                        for stmt in class.body {
-                            match stmt {
-                                rStmt::AnnAssign(assign) => {
-                                    let mut target = String::default();
-                                    if let rExpr::Name(nam) =
-                                        *assign.target.clone()
-                                    {
-                                        target = nam.id.to_string();
-                                    }
-
-                                    let ctr_field = CtrField {
-                                        nam: Name::new(target),
-                                        rec: true,
-                                    };
-
-                                    let new_name = Name::new(iden.to_string());
-
-                                    match adt.ctrs.get_mut(&new_name) {
-                                        Some(vec) => {
-                                            vec.push(ctr_field);
-                                        }
-                                        None => {
-                                            adt.ctrs.insert(
-                                                new_name.clone(),
-                                                vec![ctr_field],
-                                            );
-                                        }
-                                    }
-                                }
-                                _ => todo!(),
-                            }
-                        }
-                        self.add_adt(Name::new(iden.clone()), adt);
                     }
+
+                    adt.ctrs.insert(
+                        Name::new(format!("{}/{}", name, ct.nam)),
+                        ctrs.clone(),
+                    );
                 }
-                _ => {
-                    //self.parse_part(self.statements.get(self.index).unwrap().clone());
+            }
+
+            self.add_adt(Name::new(name), adt);
+        }
+    }
+
+    fn parse_function_def(&mut self, fun_def: &StmtFunctionDef) {
+        let mut is_bjit = false;
+
+        for dec in &fun_def.decorator_list {
+            if let rExpr::Name(nam) = dec {
+                if nam.id.to_string() == "bjit" {
+                    is_bjit = true;
                 }
             }
         }
 
+        if !is_bjit {
+            return;
+        }
+
+        let args = *fun_def.args.clone();
+        let mut names: Vec<Name> = vec![];
+
+        for arg in args.args {
+            names.push(Name::new(arg.def.arg.to_string()));
+        }
+
+        let expr = self.parse_vec(&fun_def.body, 0);
+
+        if let Some(FromExpr::Statement(e)) = expr {
+            let def = imp::Definition {
+                name: Name::new(fun_def.name.to_string()),
+                params: names,
+                body: e,
+            };
+            self.definitions.push(def);
+        }
+    }
+
+    // Main function of the library, it parses the Python Module
+    pub fn parse(&mut self, fun: &str, py_args: &[String]) -> String {
+        for stmt in self.statements.clone() {
+            match stmt {
+                rStmt::FunctionDef(fun_def) => {
+                    self.parse_function_def(&fun_def)
+                }
+                // Treats a type alias, example: Type = A | B
+                rStmt::Assign(assign) => self.parse_type_alias(&assign),
+                rStmt::ClassDef(class) => self.parse_class_def(&class),
+                _ => {}
+            }
+        }
+
+        // Turns all the parsed functions into Bend functional representation
         for def in &self.definitions {
             let fun_def = def.clone().to_fun(false).unwrap();
             self.book.defs.insert(fun_def.name.clone(), fun_def.clone());
