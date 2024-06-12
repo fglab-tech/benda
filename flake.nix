@@ -16,7 +16,7 @@
           inherit system overlays;
         };
 
-        python3 = pkgs.python312;
+        python3 = pkgs.python3;
         rust_toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
 
         nativeBuildInputs = [
@@ -36,7 +36,7 @@
           # Build tools
           pkgs.maturin
           # Python
-          pkgs.pyenv
+          (pkgs.pipenv.override { inherit python3; })
         ];
 
         naersk' = pkgs.callPackage naersk {
