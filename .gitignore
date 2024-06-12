@@ -2,7 +2,6 @@
 /.direnv/
 
 /venv/
-/.env/
 
 /debug/
 /target/
