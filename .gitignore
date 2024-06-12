@@ -1,9 +1,10 @@
 /tmp/
 /.direnv/
 
+/venv/
+
 /debug/
 /target/
-/crates/*/target/
 
 __pycache__
 

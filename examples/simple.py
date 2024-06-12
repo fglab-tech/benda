@@ -1,11 +1,8 @@
-import ast
-import inspect
-
 import benda
-from benda import u24
+from benda import bjit, u24
 
 
-def simple():
+def simple() -> u24:
     x = u24(3)
     y = x - u24(2)
     return y
