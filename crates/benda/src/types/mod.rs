@@ -2,7 +2,6 @@ use core::panic;
 
 use bend::fun::Num;
 use bend::imp;
-use pyo3::exceptions::PyTypeError;
 use pyo3::types::{PyAnyMethods, PyFloat, PyTypeMethods};
 use pyo3::{Bound, FromPyObject, PyAny, PyErr, PyTypeCheck};
 use tree::{Leaf, Node, Tree};

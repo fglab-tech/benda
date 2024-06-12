@@ -1,5 +1,5 @@
 from benda import bjit 
-from benda import Tree, Node, Leaf
+from benda import Tree, Node, Leaf, u24
 
 def gen_tree(depth, n):
     if depth == 0:
