@@ -946,7 +946,7 @@ impl Parser {
 
         self.book.entrypoint = None;
 
-        println!("BEND:\n {}", self.book.display_pretty());
+        //println!("BEND:\n {}", self.book.display_pretty());
 
         let return_val = run(&self.book);
 
