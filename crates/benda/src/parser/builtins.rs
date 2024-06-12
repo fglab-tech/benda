@@ -1,0 +1,3 @@
+pub enum BuiltIn {
+    Switch,
+}
