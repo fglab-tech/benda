@@ -2,8 +2,9 @@ use core::panic;
 
 use bend::fun::Num;
 use bend::imp;
+use pyo3::exceptions::PyTypeError;
 use pyo3::types::{PyAnyMethods, PyFloat, PyTypeMethods};
-use pyo3::{Bound, FromPyObject, PyAny, PyTypeCheck};
+use pyo3::{Bound, FromPyObject, PyAny, PyErr, PyTypeCheck};
 use tree::{Leaf, Node, Tree};
 
 pub mod f24;
@@ -12,8 +13,10 @@ pub mod tree;
 pub mod u24;
 
 pub trait BendType {
-    fn to_bend(&self) -> imp::Expr;
+    fn to_bend(&self) -> ToBendResult;
 }
+
+type ToBendResult = Result<imp::Expr, PyErr>;
 
 pub fn extract_inner<'py, T: BendType + PyTypeCheck + FromPyObject<'py>>(
     arg: Bound<'py, PyAny>,
@@ -26,42 +29,27 @@ pub fn extract_inner<'py, T: BendType + PyTypeCheck + FromPyObject<'py>>(
     None
 }
 
-pub fn extract_num(
-    arg: Bound<PyAny>,
-    t_type: BuiltinType,
-) -> Option<imp::Expr> {
+pub fn extract_num(arg: Bound<PyAny>, t_type: BuiltinType) -> ToBendResult {
     match t_type {
-        BuiltinType::I32 => {
-            Some(arg.to_string().parse::<i32>().unwrap().to_bend())
-        }
-        BuiltinType::F32 => {
-            Some(arg.to_string().parse::<f32>().unwrap().to_bend())
-        }
+        BuiltinType::I32 => arg.to_string().parse::<i32>().unwrap().to_bend(),
+        BuiltinType::F32 => arg.to_string().parse::<f32>().unwrap().to_bend(),
         _ => unreachable!(),
     }
 }
 
-pub fn extract_type(arg: Bound<PyAny>) -> Option<imp::Expr> {
+pub fn extract_type(arg: Bound<PyAny>) -> ToBendResult {
     let t_type = arg.get_type();
     let name = t_type.name().unwrap();
 
     let arg_type = BuiltinType::from(name.to_string());
 
     match arg_type {
-        BuiltinType::U24 => {
-            Some(extract_inner::<crate::u24>(arg).unwrap().to_bend())
-        }
+        BuiltinType::U24 => extract_inner::<crate::u24>(arg).unwrap().to_bend(),
         BuiltinType::I32 => extract_num(arg, BuiltinType::I32),
         BuiltinType::F32 => extract_num(arg, BuiltinType::F32),
-        BuiltinType::Tree => {
-            Some(extract_inner::<Tree>(arg).unwrap().to_bend())
-        }
-        BuiltinType::Node => {
-            Some(extract_inner::<Node>(arg).unwrap().to_bend())
-        }
-        BuiltinType::Leaf => {
-            Some(extract_inner::<Leaf>(arg).unwrap().to_bend())
-        }
+        BuiltinType::Tree => extract_inner::<Tree>(arg).unwrap().to_bend(),
+        BuiltinType::Node => extract_inner::<Node>(arg).unwrap().to_bend(),
+        BuiltinType::Leaf => extract_inner::<Leaf>(arg).unwrap().to_bend(),
     }
 }
 
@@ -84,38 +72,42 @@ impl From<String> for BuiltinType {
             "benda.Node" => BuiltinType::Node,
             "benda.Leaf" => BuiltinType::Leaf,
             "benda.Tree" => BuiltinType::Tree,
-            _ => panic!("Could not parse type"),
+            _ => panic!("Unsupported argument type"),
         }
     }
 }
 
 impl BendType for u32 {
-    fn to_bend(&self) -> imp::Expr {
-        imp::Expr::Num {
+    fn to_bend(&self) -> ToBendResult {
+        Ok(imp::Expr::Num {
             val: Num::U24(*self),
-        }
+        })
     }
 }
 
 impl BendType for f32 {
-    fn to_bend(&self) -> imp::Expr {
-        imp::Expr::Num {
+    fn to_bend(&self) -> ToBendResult {
+        Ok(imp::Expr::Num {
             val: Num::F24(*self),
-        }
+        })
     }
 }
 
 impl BendType for i32 {
-    fn to_bend(&self) -> imp::Expr {
-        imp::Expr::Num {
+    fn to_bend(&self) -> ToBendResult {
+        Ok(imp::Expr::Num {
             val: Num::I24(*self),
-        }
+        })
     }
 }
 
 impl BendType for PyFloat {
-    fn to_bend(&self) -> imp::Expr {
-        let num: f32 = self.extract().unwrap();
-        imp::Expr::Num { val: Num::F24(num) }
+    fn to_bend(&self) -> ToBendResult {
+        let num: Result<f32, PyErr> = self.extract();
+
+        match num {
+            Ok(num) => Ok(imp::Expr::Num { val: Num::F24(num) }),
+            Err(err) => Err(err),
+        }
     }
 }

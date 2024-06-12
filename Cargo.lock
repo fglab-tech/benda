@@ -113,7 +113,6 @@ version = "0.1.0"
 dependencies = [
  "bend-lang",
  "indexmap",
- "interner",
  "num-bigint",
  "num-traits",
  "pyo3",
@@ -308,12 +307,6 @@ name = "interner"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8c60687056b35a996f2213287048a7092d801b61df5fee3bd5bd9bf6f17a2d0"
-
-[[package]]
-name = "inventory"
-version = "0.3.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f958d3d68f4167080a18141e10381e7634563984a537f2a49a30fd8e53ac5767"
 
 [[package]]
 name = "is-macro"
@@ -608,7 +601,6 @@ checksum = "a5e00b96a521718e08e03b1a622f01c8a8deb50719335de3f60b3b3950f069d8"
 dependencies = [
  "cfg-if",
  "indoc",
- "inventory",
  "libc",
  "memoffset",
  "parking_lot",

@@ -3,7 +3,7 @@ use std::ops::{Add, Sub};
 use bend::imp;
 use pyo3::{pyclass, pymethods};
 
-use super::BendType;
+use super::{BendType, ToBendResult};
 
 #[pyclass(module = "benda")]
 #[allow(non_camel_case_types)]
@@ -11,16 +11,17 @@ use super::BendType;
 pub struct u24(u32);
 
 impl BendType for u24 {
-    fn to_bend(&self) -> bend::imp::Expr {
-        imp::Expr::Num {
+    fn to_bend(&self) -> ToBendResult {
+        Ok(imp::Expr::Num {
             val: bend::fun::Num::U24(self.0),
-        }
+        })
     }
 }
 
 impl u24 {
     const MAX: u32 = 0xffffff;
 
+    // TODO: Check if the masking is working properly
     pub fn new(value: u32) -> Self {
         Self(value & Self::MAX)
     }
@@ -69,6 +70,9 @@ impl std::ops::Sub for u24 {
         u24::new(self.0 - other.0)
     }
 }
+
+// TODO: Check for overflow on the operations
+// TODO: Implement tests for each operation comparing to Bend
 
 #[pymethods]
 impl u24 {
