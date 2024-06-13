@@ -7,9 +7,9 @@ use super::{BendType, ToBendResult};
 
 #[pyclass(module = "benda")]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct U24(i32);
+pub struct i24(i32);
 
-impl BendType for U24 {
+impl BendType for i24 {
     fn to_bend(&self) -> ToBendResult {
         Ok(imp::Expr::Num {
             val: bend::fun::Num::I24(self.0),
@@ -17,7 +17,7 @@ impl BendType for U24 {
     }
 }
 
-impl U24 {
+impl i24 {
     const MAX: i32 = 0xffffff;
 
     // TODO: Check if the masking is working properly
@@ -30,43 +30,43 @@ impl U24 {
     }
 }
 
-impl std::fmt::Debug for U24 {
+impl std::fmt::Debug for i24 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl std::fmt::Display for U24 {
+impl std::fmt::Display for i24 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl From<i32> for U24 {
+impl From<i32> for i24 {
     fn from(value: i32) -> Self {
-        U24::new(value)
+        i24::new(value)
     }
 }
 
-impl From<U24> for i32 {
-    fn from(val: U24) -> Self {
+impl From<i24> for i32 {
+    fn from(val: i24) -> Self {
         val.0
     }
 }
 
-impl std::ops::Add for U24 {
+impl std::ops::Add for i24 {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
-        U24::new(self.0 + other.0)
+        i24::new(self.0 + other.0)
     }
 }
 
-impl std::ops::Sub for U24 {
+impl std::ops::Sub for i24 {
     type Output = Self;
 
     fn sub(self, other: Self) -> Self {
-        U24::new(self.0 - other.0)
+        i24::new(self.0 - other.0)
     }
 }
 
@@ -74,18 +74,18 @@ impl std::ops::Sub for U24 {
 // TODO: Implement tests for each operation comparing to Bend
 
 #[pymethods]
-impl U24 {
+impl i24 {
     #[new]
     fn new_py(value: i32) -> Self {
-        U24::new(value)
+        i24::new(value)
     }
 
     fn __add__(&self, other: &Self) -> Self {
-        U24::add(*self, *other)
+        i24::add(*self, *other)
     }
 
     fn __sub__(&self, other: &Self) -> Self {
-        U24::sub(*self, *other)
+        i24::sub(*self, *other)
     }
 
     fn __str__(&self) -> String {
