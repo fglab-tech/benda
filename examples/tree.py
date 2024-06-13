@@ -1,21 +1,38 @@
-from benda import bjit 
-from benda import Tree, Node, Leaf, u24
+from dataclasses import dataclass
+from benda import bjit, u24
 
-def gen_tree(depth, n):
-    if depth == 0:
-        return Leaf(n)
-    else:
-        return Node(gen_tree(depth-1, n-1), gen_tree(depth-1, n+1))
+@dataclass
+class MyLeaf:
+    value: u24
+
+
+@dataclass
+class MyNode:
+    left: 'MyTree'
+    right: 'MyTree'
+
+
+MyTree = MyNode | MyLeaf
+
 
 @bjit
-def sum_tree(tree: Tree) -> u24:
+def sum_tree(tree: MyTree) -> u24:
     match tree:
-        case Leaf(value):
+        case MyLeaf(value):
             return value
-        case Node(left, right):
+        case MyNode(left, right):
             return sum_tree(left) + sum_tree(right)
 
-       
-tree = gen_tree(10, 10)
-val = sum_tree(tree)
-print(val)
+
+def gen_tree(depth: int, n: int) -> MyTree:
+    if depth == 0:
+        return MyLeaf(value=n)
+    else:
+        return MyNode(left=gen_tree(depth-1, n-1), right=gen_tree(depth-1, n+1))
+
+
+if __name__ == "__main__":
+    tree = gen_tree(4, 10)
+    #print(tree)
+    print(sum_tree(tree))
+

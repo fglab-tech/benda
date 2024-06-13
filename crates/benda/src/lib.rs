@@ -1,10 +1,8 @@
-use bend::imp;
 use num_traits::ToPrimitive;
 use parser::Parser;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyFunction, PyString, PyTuple};
 use rustpython_parser::{parse, Mode};
-use types::extract_type;
 use types::tree::{Leaf, Node, Tree};
 use types::u24::u24;
 mod benda_ffi;
@@ -68,15 +66,14 @@ impl PyBjit {
             arg_list.push(arg.to_string());
         }
 
-        let mut parsed_types: Vec<(String, imp::Expr)> = vec![];
+        let mut parsed_types: Vec<(String, Bound<PyAny>)> = vec![];
 
         for (index, arg) in
             args.downcast::<PyTuple>().unwrap().iter().enumerate()
         {
-            parsed_types.push((
-                arg_list.get(index).unwrap().to_string(),
-                extract_type(arg).unwrap(),
-            ));
+            let var_name = arg_list.get(index).unwrap().to_string();
+
+            parsed_types.push((var_name.clone(), arg));
         }
 
         let code = std::fs::read_to_string(filename.to_string()).unwrap();

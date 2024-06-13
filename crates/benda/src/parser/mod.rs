@@ -6,6 +6,7 @@ use bend::fun::{self, Adt, Book, CtrField, Name, Op, Rule, STRINGS};
 use bend::imp::{self, Expr, MatchArm, Stmt};
 use indexmap::IndexMap;
 use num_traits::cast::ToPrimitive;
+use pyo3::{Bound, PyAny};
 use rustpython_parser::ast::{
     located, CmpOp as rCmpOp, Expr as rExpr, ExprAttribute, ExprBinOp,
     Operator as rOperator, Pattern as rPattern, Stmt as rStmt, StmtAssign,
@@ -13,6 +14,7 @@ use rustpython_parser::ast::{
 };
 
 use crate::benda_ffi::run;
+use crate::types::extract_type;
 
 #[derive(Clone, Debug)]
 enum FromExpr {
@@ -57,20 +59,20 @@ struct Context {
     subs: Vec<String>,
 }
 
-pub struct Parser {
+pub struct Parser<'py> {
     statements: Vec<rStmt>,
     book: Book,
     definitions: Vec<imp::Definition>,
     ctx: Option<Context>,
     index: usize,
-    fun_args: Vec<(String, imp::Expr)>,
+    fun_args: Vec<(String, Bound<'py, PyAny>)>,
 }
 
-impl Parser {
+impl<'py> Parser<'py> {
     pub fn new(
         statements: Vec<rStmt>,
         index: usize,
-        fun_args: Vec<(String, imp::Expr)>,
+        fun_args: Vec<(String, Bound<'py, PyAny>)>,
     ) -> Self {
         Self {
             statements,
@@ -692,8 +694,8 @@ impl Parser {
     }
 
     // Creates a Bend Definition for each argument for the annotaded function.
-    fn parse_fun_args(&mut self) {
-        for (name, expr) in &self.fun_args {
+    fn parse_fun_args(&mut self, parsed_types: &Vec<(String, imp::Expr)>) {
+        for (name, expr) in parsed_types {
             let u_type = expr.clone().to_fun();
 
             let nam = Name::new(name.to_string());
@@ -724,75 +726,43 @@ impl Parser {
             subs: vec![fun_name.to_string()],
         });
 
-        self.parse_fun_args();
+        let mut parsed_types: Vec<(String, imp::Expr)> = vec![];
 
-        for (index, stmt) in
-            self.statements.clone().iter().skip(self.index).enumerate()
-        {
-            if let rStmt::Assign(assi) = stmt {
-                if let rExpr::Name(target) = assi.targets.first().unwrap() {
-                    if py_args.contains(target.id.as_ref()) {
-                        let body =
-                            self.parse_vec(&self.statements.clone(), index);
+        for arg in self.fun_args.iter() {
+            parsed_types.push((
+                arg.0.clone(),
+                extract_type(arg.1.clone(), &arg.0).unwrap(),
+            ));
+        }
 
-                        if let Some(FromExpr::Statement(st)) = body {
-                            return Some(imp::Definition {
-                                name: Name::new("main"),
-                                params: vec![],
-                                body: st,
-                            });
-                        }
-                    }
-                }
+        self.parse_fun_args(&parsed_types);
 
-                if let rExpr::Call(call) = *assi.clone().value {
-                    if let rExpr::Name(func) = *call.func {
-                        if fun_name == func.id.to_string() {
-                            if call.args.is_empty() {
-                                panic!("The function must have arguments for Bend can run it.");
-                            } else {
-                                let new_body = self
-                                    .parse_vec(&self.statements.clone(), index);
+        let mut new_args: Vec<Expr> = vec![];
 
-                                if let Some(FromExpr::Statement(st)) = new_body
-                                {
-                                    return Some(imp::Definition {
-                                        name: Name::new("main"),
-                                        params: vec![],
-                                        body: st,
-                                    });
-                                }
-
-                                let mut new_args: Vec<Expr> = vec![];
-
-                                for arg in self.fun_args.clone() {
-                                    new_args.push(Expr::Var {
-                                        nam: Name::new(arg.0),
-                                    })
-                                }
-
-                                let first = Stmt::Return {
-                                    term: Box::new(Expr::Call {
-                                        fun: Box::new(imp::Expr::Var {
-                                            nam: Name::new(
-                                                fun_name.to_string(),
-                                            ),
-                                        }),
-                                        args: new_args,
-                                        kwargs: vec![],
-                                    }),
-                                };
-                                return Some(imp::Definition {
-                                    name: Name::new("main"),
-                                    params: vec![],
-                                    body: first,
-                                });
-                            }
-                        }
-                    }
-                }
+        for arg in parsed_types.clone() {
+            match arg.1 {
+                imp::Expr::Var { nam } => {}
+                _ => new_args.push(Expr::Var {
+                    nam: Name::new(arg.0),
+                }),
             }
         }
+
+        let first = Stmt::Return {
+            term: Box::new(Expr::Call {
+                fun: Box::new(imp::Expr::Var {
+                    nam: Name::new(fun_name.to_string()),
+                }),
+                args: new_args,
+                kwargs: vec![],
+            }),
+        };
+
+        return Some(imp::Definition {
+            name: Name::new("main"),
+            params: vec![],
+            body: first,
+        });
 
         None
     }
@@ -946,7 +916,7 @@ impl Parser {
 
         self.book.entrypoint = None;
 
-        //println!("BEND:\n {}", self.book.display_pretty());
+        println!("BEND:\n {}", self.book.display_pretty());
 
         let return_val = run(&self.book);
 

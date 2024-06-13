@@ -1,7 +1,5 @@
-use core::panic;
-
-use bend::fun::Num;
-use bend::imp;
+use bend::fun::{Name, Num};
+use bend::imp::{self, Expr};
 use pyo3::types::{PyAnyMethods, PyFloat, PyTypeMethods};
 use pyo3::{Bound, FromPyObject, PyAny, PyErr, PyTypeCheck};
 use tree::{Leaf, Node, Tree};
@@ -10,6 +8,7 @@ pub mod f24;
 pub mod i24;
 pub mod tree;
 pub mod u24;
+pub mod user_adt;
 
 pub trait BendType {
     fn to_bend(&self) -> ToBendResult;
@@ -36,7 +35,7 @@ pub fn extract_num(arg: Bound<PyAny>, t_type: BuiltinType) -> ToBendResult {
     }
 }
 
-pub fn extract_type(arg: Bound<PyAny>) -> ToBendResult {
+pub fn extract_type(arg: Bound<PyAny>, var_name: &String) -> ToBendResult {
     let t_type = arg.get_type();
     let name = t_type.name().unwrap();
 
@@ -49,6 +48,9 @@ pub fn extract_type(arg: Bound<PyAny>) -> ToBendResult {
         BuiltinType::Tree => extract_inner::<Tree>(arg).unwrap().to_bend(),
         BuiltinType::Node => extract_inner::<Node>(arg).unwrap().to_bend(),
         BuiltinType::Leaf => extract_inner::<Leaf>(arg).unwrap().to_bend(),
+        BuiltinType::UserAdt => Ok(Expr::Var {
+            nam: Name::new(var_name),
+        }),
     }
 }
 
@@ -60,6 +62,7 @@ pub enum BuiltinType {
     Tree,
     Leaf,
     Node,
+    UserAdt,
 }
 
 impl From<String> for BuiltinType {
@@ -71,7 +74,7 @@ impl From<String> for BuiltinType {
             "benda.Node" => BuiltinType::Node,
             "benda.Leaf" => BuiltinType::Leaf,
             "benda.Tree" => BuiltinType::Tree,
-            _ => panic!("Unsupported argument type"),
+            _ => BuiltinType::UserAdt,
         }
     }
 }

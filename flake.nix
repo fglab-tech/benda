@@ -18,6 +18,8 @@
 
         python3 = pkgs.python312;
         rust_toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+        rust_src = pkgs.rust.packages.stable.rustPlatform.rustcSrc;
+
 
         nativeBuildInputs = [
           pkgs.git
@@ -28,6 +30,7 @@
           # Python
           python3
         ];
+
 
         dev_packages = [
           pkgs.gnumake
