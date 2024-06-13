@@ -8,6 +8,7 @@ def simple() -> u24:
     return y
 
 
-translated_simple = bjit(simple)
-print(simple())
-print(translated_simple())
+if __name__ == "__main__":
+    translated_simple = bjit(simple)
+    print(simple())
+    print(translated_simple())
