@@ -1,18 +1,11 @@
 use bend::fun::{Book, Num};
 use bend::imp::{self};
+use num_traits::cast::ToPrimitive;
 use pyo3::types::{PyAnyMethods, PyFloat, PyTypeMethods};
 use pyo3::{Bound, FromPyObject, PyAny, PyErr, PyTypeCheck};
-use rustpython_parser::ast::located::Expr;
+use rustpython_parser::ast::ExprCall;
 use tree::{Leaf, Node, Tree};
 use user_adt::UserAdt;
-
-use num_traits::cast::ToPrimitive;
-
-use rustpython_parser::ast::{
-    located, CmpOp as rCmpOp, Expr as rExpr, ExprAttribute, ExprBinOp,
-    ExprCall, Operator as rOperator, Pattern as rPattern, Stmt as rStmt,
-    StmtAssign, StmtClassDef, StmtExpr, StmtFunctionDef, StmtIf, StmtMatch,
-};
 
 pub mod f24;
 pub mod i24;
