@@ -731,7 +731,7 @@ impl<'py> Parser<'py> {
         for arg in self.fun_args.iter() {
             parsed_types.push((
                 arg.0.clone(),
-                extract_type(arg.1.clone(), &arg.0).unwrap(),
+                extract_type(arg.1.clone(), &self.book).unwrap(),
             ));
         }
 

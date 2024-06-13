@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyFunction, PyString, PyTuple};
 use rustpython_parser::{parse, Mode};
 use types::tree::{Leaf, Node, Tree};
-use types::u24::u24;
+use types::u24;
 mod benda_ffi;
 mod parser;
 mod types;
@@ -115,7 +115,7 @@ impl PyBjit {
 fn benda(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(switch, m)?)?;
     m.add_class::<PyBjit>()?;
-    m.add_class::<u24>()?;
+    m.add_class::<u24::U24>()?;
     m.add_class::<Tree>()?;
     m.add_class::<Node>()?;
     m.add_class::<Leaf>()?;

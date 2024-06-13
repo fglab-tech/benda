@@ -5,14 +5,14 @@ use bend::{fun, imp};
 use pyo3::types::{PyAnyMethods, PyTuple, PyTypeMethods};
 use pyo3::{pyclass, pymethods, Bound};
 
-use super::u24::u24;
+use super::u24::U24;
 use super::{BendType, ToBendResult};
 use crate::types::extract_inner;
 
 #[derive(Clone, Debug)]
 #[pyclass(module = "benda", name = "Leaf")]
 pub struct Leaf {
-    pub value: u24,
+    pub value: U24,
 }
 
 impl BendType for Leaf {
@@ -26,7 +26,7 @@ impl Leaf {
     #[new]
     fn __new__(val: u32) -> Self {
         Self {
-            value: u24::new(val),
+            value: U24::new(val),
         }
     }
 }

@@ -33,6 +33,5 @@ def gen_tree(depth: int, n: int) -> MyTree:
 
 if __name__ == "__main__":
     tree = gen_tree(4, 10)
-    #print(tree)
+    print(tree)
     print(sum_tree(tree))
-

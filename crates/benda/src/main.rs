@@ -4,6 +4,7 @@ use pyo3::prelude::*;
 use rustpython_parser::{parse, Mode};
 
 mod benda_ffi;
+mod types;
 
 fn main() -> PyResult<()> {
     let filename = String::from("main.py");
