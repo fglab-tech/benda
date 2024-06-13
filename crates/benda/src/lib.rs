@@ -94,7 +94,7 @@ impl PyBjit {
                                 parsed_types.clone(),
                             );
                             let return_val =
-                                parser.parse(fun_def.name.as_ref(), &[]);
+                                parser.parse(name.to_string().as_ref(), &[]);
                             val = Some(PyString::new_bound(
                                 py,
                                 return_val.as_str(),

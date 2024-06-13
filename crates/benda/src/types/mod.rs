@@ -2,8 +2,17 @@ use bend::fun::{Book, Num};
 use bend::imp::{self};
 use pyo3::types::{PyAnyMethods, PyFloat, PyTypeMethods};
 use pyo3::{Bound, FromPyObject, PyAny, PyErr, PyTypeCheck};
+use rustpython_parser::ast::located::Expr;
 use tree::{Leaf, Node, Tree};
 use user_adt::UserAdt;
+
+use num_traits::cast::ToPrimitive;
+
+use rustpython_parser::ast::{
+    located, CmpOp as rCmpOp, Expr as rExpr, ExprAttribute, ExprBinOp,
+    ExprCall, Operator as rOperator, Pattern as rPattern, Stmt as rStmt,
+    StmtAssign, StmtClassDef, StmtExpr, StmtFunctionDef, StmtIf, StmtMatch,
+};
 
 pub mod f24;
 pub mod i24;
@@ -80,6 +89,54 @@ pub fn extract_type(arg: Bound<PyAny>, book: &Book) -> ToBendResult {
     }
 }
 
+pub fn extract_type_expr(call: ExprCall) -> Option<imp::Expr> {
+    let name = call.func.as_name_expr().unwrap().id.to_string();
+
+    let arg = call.args.first().unwrap();
+
+    let arg_type = BuiltinType::from(name.to_string());
+
+    match arg_type {
+        BuiltinType::U24 => Some(imp::Expr::Num {
+            val: Num::U24(
+                arg.clone()
+                    .constant_expr()
+                    .unwrap()
+                    .value
+                    .int()
+                    .unwrap()
+                    .to_u32()
+                    .unwrap(),
+            ),
+        }),
+        BuiltinType::I32 => Some(imp::Expr::Num {
+            val: Num::I24(
+                arg.clone()
+                    .constant_expr()
+                    .unwrap()
+                    .value
+                    .int()
+                    .unwrap()
+                    .to_i32()
+                    .unwrap(),
+            ),
+        }),
+        BuiltinType::F32 => Some(imp::Expr::Num {
+            val: Num::F24(
+                arg.clone()
+                    .constant_expr()
+                    .unwrap()
+                    .value
+                    .int()
+                    .unwrap()
+                    .to_f32()
+                    .unwrap(),
+            ),
+        }),
+        _ => None,
+    }
+}
+
 #[derive(Debug)]
 pub enum BuiltinType {
     U24,
@@ -97,6 +154,7 @@ impl From<String> for BuiltinType {
             "float" => BuiltinType::F32,
             "int" => BuiltinType::I32,
             "benda.u24" => BuiltinType::U24,
+            "u24" => BuiltinType::U24,
             "benda.Node" => BuiltinType::Node,
             "benda.Leaf" => BuiltinType::Leaf,
             "benda.Tree" => BuiltinType::Tree,

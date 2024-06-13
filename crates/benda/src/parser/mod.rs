@@ -14,7 +14,7 @@ use rustpython_parser::ast::{
 };
 
 use crate::benda_ffi::run;
-use crate::types::extract_type;
+use crate::types::{extract_type, extract_type_expr};
 
 #[derive(Clone, Debug)]
 enum FromExpr {
@@ -194,11 +194,15 @@ impl<'py> Parser<'py> {
             }
 
             rExpr::Call(c) => {
-                let fun = c.func;
+                let fun = c.clone().func;
 
                 let expr = self.parse_expr_type(*fun);
 
                 if let Some(FromExpr::Expr(Expr::Var { ref nam })) = expr {
+                    if let Some(var) = extract_type_expr(c.clone()) {
+                        return Some(FromExpr::Expr(var));
+                    }
+
                     let mut args: Vec<Expr> = vec![];
 
                     for arg in c.args {
@@ -865,9 +869,9 @@ impl<'py> Parser<'py> {
             }
         }
 
-        if !is_bjit {
-            return;
-        }
+        //if !is_bjit {
+        //return;
+        //}
 
         let args = *fun_def.args.clone();
         let mut names: Vec<Name> = vec![];
