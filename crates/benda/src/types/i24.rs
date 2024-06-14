@@ -6,7 +6,6 @@ use pyo3::{pyclass, pymethods};
 use super::{BendType, ToBendResult};
 
 #[pyclass(module = "benda")]
-#[allow(non_camel_case_types)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct i24(i32);
 

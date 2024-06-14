@@ -2,35 +2,36 @@ from dataclasses import dataclass
 from benda import bjit, u24
 
 @dataclass
-class Leaf:
+class MyLeaf:
     value: u24
 
 
 @dataclass
-class Node:
-    left: 'Tree'
-    right: 'Tree'
+class MyNode:
+    left: 'MyTree'
+    right: 'MyTree'
 
 
-Tree = Node | Leaf
+MyTree = MyNode | MyLeaf
 
 
-# @bjit
-def sum_tree(tree: Tree) -> u24:
+@bjit
+def sum_tree(tree: MyTree) -> u24:
     match tree:
-        case Leaf(value):
+        case MyLeaf(value):
             return value
-        case Node(left, right):
+        case MyNode(left, right):
             return sum_tree(left) + sum_tree(right)
 
 
-def gen_tree(depth: int, n: int) -> Tree:
+def gen_tree(depth: int, n: int) -> MyTree:
     if depth == 0:
-        return Leaf(value=n)
+        return MyLeaf(value=n)
     else:
-        return Node(left=gen_tree(depth-1, n-1), right=gen_tree(depth-1, n+1))
+        return MyNode(left=gen_tree(depth-1, n-1), right=gen_tree(depth-1, n+1))
 
 
-tree = gen_tree(4, 10)
-val = sum_tree(tree)
-print(val)
+if __name__ == "__main__":
+    tree = gen_tree(4, 10)
+    print(tree)
+    print(sum_tree(tree))

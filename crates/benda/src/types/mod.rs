@@ -1,16 +1,17 @@
-use core::panic;
-
-use bend::fun::Num;
-use bend::imp;
-use pyo3::exceptions::PyTypeError;
+use bend::fun::{Book, Num};
+use bend::imp::{self};
+use num_traits::cast::ToPrimitive;
 use pyo3::types::{PyAnyMethods, PyFloat, PyTypeMethods};
 use pyo3::{Bound, FromPyObject, PyAny, PyErr, PyTypeCheck};
+use rustpython_parser::ast::ExprCall;
 use tree::{Leaf, Node, Tree};
+use user_adt::UserAdt;
 
 pub mod f24;
 pub mod i24;
 pub mod tree;
 pub mod u24;
+pub mod user_adt;
 
 pub trait BendType {
     fn to_bend(&self) -> ToBendResult;
@@ -29,6 +30,17 @@ pub fn extract_inner<'py, T: BendType + PyTypeCheck + FromPyObject<'py>>(
     None
 }
 
+pub fn extract_num_raw(
+    arg: Bound<PyAny>,
+    t_type: BuiltinType,
+) -> Box<dyn BendType> {
+    match t_type {
+        BuiltinType::I32 => Box::new(arg.to_string().parse::<i32>().unwrap()),
+        BuiltinType::F32 => Box::new(arg.to_string().parse::<f32>().unwrap()),
+        _ => unreachable!(),
+    }
+}
+
 pub fn extract_num(arg: Bound<PyAny>, t_type: BuiltinType) -> ToBendResult {
     match t_type {
         BuiltinType::I32 => arg.to_string().parse::<i32>().unwrap().to_bend(),
@@ -37,19 +49,84 @@ pub fn extract_num(arg: Bound<PyAny>, t_type: BuiltinType) -> ToBendResult {
     }
 }
 
-pub fn extract_type(arg: Bound<PyAny>) -> ToBendResult {
+pub fn extract_type_raw(arg: Bound<PyAny>) -> Option<Box<dyn BendType>> {
     let t_type = arg.get_type();
     let name = t_type.name().unwrap();
 
     let arg_type = BuiltinType::from(name.to_string());
 
     match arg_type {
-        BuiltinType::U24 => extract_inner::<crate::u24>(arg).unwrap().to_bend(),
+        BuiltinType::U24 => {
+            Some(Box::new(extract_inner::<u24::u24>(arg).unwrap()))
+        }
+        BuiltinType::I32 => Some(extract_num_raw(arg, BuiltinType::I32)),
+        BuiltinType::F32 => Some(extract_num_raw(arg, BuiltinType::F32)),
+        _ => None,
+    }
+}
+
+pub fn extract_type(arg: Bound<PyAny>, book: &Book) -> ToBendResult {
+    let t_type = arg.get_type();
+    let name = t_type.name().unwrap();
+
+    let arg_type = BuiltinType::from(name.to_string());
+
+    match arg_type {
+        BuiltinType::U24 => extract_inner::<u24::u24>(arg).unwrap().to_bend(),
         BuiltinType::I32 => extract_num(arg, BuiltinType::I32),
         BuiltinType::F32 => extract_num(arg, BuiltinType::F32),
         BuiltinType::Tree => extract_inner::<Tree>(arg).unwrap().to_bend(),
         BuiltinType::Node => extract_inner::<Node>(arg).unwrap().to_bend(),
         BuiltinType::Leaf => extract_inner::<Leaf>(arg).unwrap().to_bend(),
+        BuiltinType::UserAdt => UserAdt::new(arg, book).unwrap().to_bend(),
+    }
+}
+
+pub fn extract_type_expr(call: ExprCall) -> Option<imp::Expr> {
+    let name = call.func.as_name_expr().unwrap().id.to_string();
+
+    let arg = call.args.first().unwrap();
+
+    let arg_type = BuiltinType::from(name.to_string());
+
+    match arg_type {
+        BuiltinType::U24 => Some(imp::Expr::Num {
+            val: Num::U24(
+                arg.clone()
+                    .constant_expr()
+                    .unwrap()
+                    .value
+                    .int()
+                    .unwrap()
+                    .to_u32()
+                    .unwrap(),
+            ),
+        }),
+        BuiltinType::I32 => Some(imp::Expr::Num {
+            val: Num::I24(
+                arg.clone()
+                    .constant_expr()
+                    .unwrap()
+                    .value
+                    .int()
+                    .unwrap()
+                    .to_i32()
+                    .unwrap(),
+            ),
+        }),
+        BuiltinType::F32 => Some(imp::Expr::Num {
+            val: Num::F24(
+                arg.clone()
+                    .constant_expr()
+                    .unwrap()
+                    .value
+                    .int()
+                    .unwrap()
+                    .to_f32()
+                    .unwrap(),
+            ),
+        }),
+        _ => None,
     }
 }
 
@@ -61,6 +138,7 @@ pub enum BuiltinType {
     Tree,
     Leaf,
     Node,
+    UserAdt,
 }
 
 impl From<String> for BuiltinType {
@@ -69,10 +147,11 @@ impl From<String> for BuiltinType {
             "float" => BuiltinType::F32,
             "int" => BuiltinType::I32,
             "benda.u24" => BuiltinType::U24,
+            "u24" => BuiltinType::U24,
             "benda.Node" => BuiltinType::Node,
             "benda.Leaf" => BuiltinType::Leaf,
             "benda.Tree" => BuiltinType::Tree,
-            _ => panic!("Unsupported argument type"),
+            _ => BuiltinType::UserAdt,
         }
     }
 }
