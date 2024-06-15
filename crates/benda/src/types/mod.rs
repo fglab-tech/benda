@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use bend::fun::{Book, Num};
 use bend::imp::{self};
 use num_traits::cast::ToPrimitive;
@@ -7,6 +9,7 @@ use rustpython_parser::ast::ExprCall;
 use tree::{Leaf, Node, Tree};
 use user_adt::UserAdt;
 
+pub mod book;
 pub mod f24;
 pub mod i24;
 pub mod tree;
@@ -130,7 +133,7 @@ pub fn extract_type_expr(call: ExprCall) -> Option<imp::Expr> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BuiltinType {
     U24,
     F32,
@@ -139,6 +142,17 @@ pub enum BuiltinType {
     Leaf,
     Node,
     UserAdt,
+}
+
+impl Display for BuiltinType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BuiltinType::U24 => f.write_str("u24"),
+            BuiltinType::F32 => f.write_str("f24"),
+            BuiltinType::I32 => f.write_str("i24"),
+            _ => panic!(),
+        }
+    }
 }
 
 impl From<String> for BuiltinType {

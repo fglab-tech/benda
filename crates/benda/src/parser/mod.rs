@@ -899,7 +899,7 @@ impl<'py> Parser<'py> {
                 rStmt::FunctionDef(fun_def) => {
                     self.parse_function_def(&fun_def)
                 }
-                // Treats a type alias, example: Type = A | B
+                // Treats an type alias, example: Type = A | B
                 rStmt::Assign(assign) => self.parse_type_alias(&assign),
                 rStmt::ClassDef(class) => self.parse_class_def(&class),
                 _ => {}

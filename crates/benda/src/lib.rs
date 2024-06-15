@@ -1,8 +1,12 @@
+use std::path::Path;
+
+use bend::fun::Book as BendBook;
 use num_traits::ToPrimitive;
 use parser::Parser;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyFunction, PyString, PyTuple};
 use rustpython_parser::{parse, Mode};
+use types::book::Book;
 use types::tree::{Leaf, Node, Tree};
 use types::u24;
 mod benda_ffi;
@@ -12,6 +16,26 @@ mod types;
 #[pyfunction]
 fn switch() -> PyResult<String> {
     Ok("Ok".to_string())
+}
+
+#[pyfunction]
+fn load_book_from_file(py: Python, path: Py<PyString>) -> PyResult<Py<Book>> {
+    let binding = path.to_string();
+    let new_path = Path::new(&binding);
+    let bend_book = bend::load_file_to_book(new_path);
+
+    //let code = std::fs::read_to_string(new_path)
+    //    .map_err(|e| e.to_string())
+    //    .unwrap();
+    //let bend_book = bend::fun::load_book::do_parse_book(
+    //    &code,
+    //    new_path,
+    //    BendBook::default(),
+    //);
+
+    let book = Book::new(bend_book.unwrap());
+
+    Ok(Py::new(py, book).unwrap())
 }
 
 #[pyclass(name = "bjit")]
@@ -40,6 +64,8 @@ impl PyBjit {
                     let name = inner.getattr("__name__").unwrap();
                     let code = inner.getattr("__code__").unwrap();
                     let filename = code.getattr("co_filename").unwrap();
+
+                    println!("code: {:?}", code);
 
                     arg_names_temp = code.getattr("co_varnames").unwrap();
                     let arg_names =
@@ -114,6 +140,7 @@ impl PyBjit {
 #[pymodule]
 fn benda(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(switch, m)?)?;
+    m.add_function(wrap_pyfunction!(load_book_from_file, m)?)?;
     m.add_class::<PyBjit>()?;
     m.add_class::<u24::u24>()?;
     m.add_class::<Tree>()?;
