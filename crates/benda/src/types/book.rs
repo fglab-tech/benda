@@ -4,7 +4,7 @@ use bend::fun::{
 use indexmap::IndexMap;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use pyo3::types::{PyNone, PyString};
+use pyo3::types::{PyFunction, PyNone, PyString};
 
 use super::BuiltinType;
 
@@ -21,8 +21,6 @@ pub struct Ctr {
 #[pymethods]
 impl Ctr {
     fn __setattr__(&mut self, field: Bound<PyAny>, value: Bound<PyAny>) {
-        println!("FIELD {:?}", field.to_string());
-
         if let Some(val) = self.fields.get_mut(&field.to_string()) {
             val.replace(value.to_object(field.py()));
         }
