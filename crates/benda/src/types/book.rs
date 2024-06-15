@@ -4,7 +4,7 @@ use bend::fun::{
 use indexmap::IndexMap;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use pyo3::types::PyNone;
+use pyo3::types::{PyNone, PyString};
 
 use super::BuiltinType;
 
@@ -20,16 +20,17 @@ pub struct Ctr {
 
 #[pymethods]
 impl Ctr {
-    fn __getattr__(&mut self, object: Bound<PyAny>) -> PyResult<&PyObject> {
-        let py = object.py();
+    fn __setattr__(&mut self, field: Bound<PyAny>, value: Bound<PyAny>) {
+        println!("FIELD {:?}", field.to_string());
 
-        if let Some(val) = self.fields.get_mut(&object.to_string()) {
-            if let Some(v) = val {
-                return Ok(v);
-            }
+        if let Some(val) = self.fields.get_mut(&field.to_string()) {
+            val.replace(value.to_object(field.py()));
+        }
+    }
 
-            val.replace(py.None());
-            todo!()
+    fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<PyObject> {
+        if let Some(val) = self.fields.get(&object.to_string()) {
+            Ok(val.clone().into_py(object.py()))
         } else {
             new_err(format!("Could not find attr {}", object))
         }
@@ -52,11 +53,11 @@ impl Ctrs {
 
 #[pymethods]
 impl Ctrs {
-    fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<Bound<Ctrs>> {
+    fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<Py<Ctr>> {
         let py = object.py();
 
         if let Some(val) = self.fields.get(&object.to_string()) {
-            Ok(val)
+            Ok(Python::with_gil(|py| Py::new(py, val.clone()).unwrap()))
         } else {
             new_err(format!("Could not find attr {}", object))
         }
