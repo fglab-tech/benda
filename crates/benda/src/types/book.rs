@@ -1,25 +1,49 @@
+use std::alloc::GlobalAlloc;
+use std::cell::RefCell;
+
+use bend::fun::parser::TermParser;
 use bend::fun::{
-    Adt as BendAdt, Book as BendBook, CtrField, Definition as BendDef,
+    self, Adt as BendAdt, Book as BendBook, CtrField, Definition as BendDef,
+    Name, Rule, Term,
 };
+use bend::imp::{self, Expr, Stmt};
+use bend::run_book;
 use indexmap::IndexMap;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use pyo3::types::{PyFunction, PyNone, PyString};
+use pyo3::types::{PyString, PyTuple};
 
-use super::BuiltinType;
+use crate::benda_ffi;
+
+use super::user_adt::UserAdt;
+use super::{extract_num_raw, extract_type_raw, BendType, BuiltinType};
 
 fn new_err<T>(str: String) -> PyResult<T> {
     Err(PyException::new_err(str))
 }
 
+thread_local!(static GLOBAL_BOOK: RefCell<Option<BendBook>> = const { RefCell::new(None) });
+
 #[pyclass(name = "Ctr")]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Ctr {
+    name: String,
+    entire_name: String,
     fields: IndexMap<String, Option<Py<PyAny>>>,
 }
 
 #[pymethods]
 impl Ctr {
+    #[pyo3(signature = (*args))]
+    fn __call__(&mut self, args: Bound<'_, PyTuple>) -> PyResult<Py<Ctr>> {
+        let py = args.py();
+        for (i, field) in self.fields.iter_mut().enumerate() {
+            field.1.replace(args.get_item(i).unwrap().to_object(py));
+        }
+
+        Ok(Py::new(py, self.clone()).unwrap())
+    }
+
     fn __setattr__(&mut self, field: Bound<PyAny>, value: Bound<PyAny>) {
         if let Some(val) = self.fields.get_mut(&field.to_string()) {
             val.replace(value.to_object(field.py()));
@@ -27,6 +51,15 @@ impl Ctr {
     }
 
     fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<PyObject> {
+        let field = object.to_string();
+
+        let py = object.py();
+
+        if field == "type" {
+            return Ok(PyString::new_bound(py, &self.entire_name).into_py(py));
+        }
+
+        // TODO : FIX THIS
         if let Some(val) = self.fields.get(&object.to_string()) {
             Ok(val.clone().into_py(object.py()))
         } else {
@@ -55,16 +88,139 @@ impl Ctrs {
         let py = object.py();
 
         if let Some(val) = self.fields.get(&object.to_string()) {
-            Ok(Python::with_gil(|py| Py::new(py, val.clone()).unwrap()))
+            Ok(Py::new(py, val.clone()).unwrap())
         } else {
             new_err(format!("Could not find attr {}", object))
         }
     }
 }
 
+#[pyclass(name = "Definition")]
+#[derive(Clone, Debug, Default)]
+pub struct Definition {
+    arity: usize,
+    name: String,
+    rules: Vec<Rule>,
+}
+
+#[pymethods]
+impl Definition {
+    #[pyo3(signature = (*args))]
+    fn __call__(&mut self, args: Bound<'_, PyTuple>) -> PyResult<Py<PyAny>> {
+        let py = args.py();
+
+        let bend_book = GLOBAL_BOOK.take();
+
+        if self.arity != args.len() {
+            return new_err(format!(
+                "Function has arity {} and received {} arguments",
+                self.arity,
+                args.len(),
+            ));
+        }
+
+        let mut new_args: Vec<Expr> = vec![];
+
+        if let Some(mut b) = bend_book.clone() {
+            let mut arg_num = 0;
+
+            for arg in args.iter() {
+                let adt = UserAdt::new(arg.clone(), &b);
+
+                let new_arg: Expr;
+
+                if let Some(adt) = adt {
+                    new_arg = adt.to_bend().unwrap();
+                } else {
+                    new_arg = extract_type_raw(arg.clone())
+                        .unwrap()
+                        .to_bend()
+                        .unwrap();
+                }
+
+                let arg_name = Name::new(format!("arg{}", arg_num));
+
+                let u_type = new_arg.clone().to_fun();
+
+                let def = fun::Definition {
+                    name: arg_name.clone(),
+                    rules: vec![Rule {
+                        pats: vec![],
+                        body: u_type,
+                    }],
+                    builtin: false,
+                };
+
+                dbg!(def.clone());
+
+                b.defs.insert(arg_name.clone(), def);
+
+                new_args.push(Expr::Var {
+                    nam: arg_name.clone(),
+                });
+
+                arg_num += 1;
+            }
+
+            let first = Stmt::Return {
+                term: Box::new(Expr::Call {
+                    fun: Box::new(imp::Expr::Var {
+                        nam: Name::new(self.name.to_string()),
+                    }),
+                    args: new_args,
+                    kwargs: vec![],
+                }),
+            };
+
+            let main_def = imp::Definition {
+                name: Name::new("main"),
+                params: vec![],
+                body: first,
+            };
+
+            b.defs
+                .insert(Name::new("main"), main_def.to_fun(true).unwrap());
+
+            println!("Bend: {}", b.display_pretty());
+
+            let res = benda_ffi::run(&b.clone());
+
+            GLOBAL_BOOK.set(bend_book);
+
+            return Ok(PyString::new_bound(py, &res.unwrap().0.to_string())
+                .into_py(py));
+        }
+
+        new_err(format!("Could not execute function {}", self.name))
+    }
+}
+
 #[pyclass(name = "Definitions")]
 #[derive(Clone, Debug, Default)]
-pub struct Definitions {}
+pub struct Definitions {
+    defs: IndexMap<String, Definition>,
+}
+
+impl Definitions {
+    fn new() -> Self {
+        Self::default()
+    }
+}
+
+#[pymethods]
+impl Definitions {
+    fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<Py<Definition>> {
+        let binding = object.to_string();
+        let field = binding.as_str();
+        let py = object.py();
+
+        if let Some(def) = self.defs.get(field) {
+            Ok(Py::new(py, def.clone())?)
+        } else {
+            new_err(format!("Could not find attr {}", object))
+        }
+    }
+}
 
 #[pyclass(name = "Adt")]
 #[derive(Clone, Debug)]
@@ -113,7 +269,11 @@ impl Book {
 
             for (ctr_name, ctr_fields) in bend_adt.ctrs.iter() {
                 let new_name = ctr_name.split('/').last().unwrap().to_string();
-                let mut new_ctr = Ctr::default();
+                let mut new_ctr = Ctr {
+                    name: new_name.clone(),
+                    entire_name: ctr_name.to_string(),
+                    fields: IndexMap::new(),
+                };
 
                 for c in ctr_fields {
                     new_ctr.fields.insert(c.nam.to_string(), None);
@@ -125,13 +285,23 @@ impl Book {
             adts.adts.insert(adt_name.to_string(), all_ctrs);
         }
 
-        println!("\n\nBend: {:?}\n", bend_book.adts);
-        println!("\n\nBenda: {:?}\n", adts);
+        let mut definitions = Definitions::default();
+
+        for (nam, def) in bend_book.defs.iter() {
+            let new_def = Definition {
+                arity: def.arity(),
+                name: def.name.to_string(),
+                rules: def.rules.clone(),
+            };
+            definitions.defs.insert(nam.to_string(), new_def);
+        }
+
+        GLOBAL_BOOK.set(Some(bend_book.clone()));
 
         Self {
             bend_book,
             adts,
-            defs: Definitions::default(),
+            defs: definitions,
         }
     }
 }
@@ -149,9 +319,8 @@ impl Book {
                 Ok(adt.clone().into_py(py))
             }
             "defs" => {
-                //let adt = self.defs.get(&field.to_string()).unwrap();
-                //Ok(adt.clone().into_py(py))
-                new_err("Not yet Implemented".to_string())
+                let def = &self.defs;
+                Ok(def.clone().into_py(py))
             }
 
             _ => new_err(format!("Could not find attribute {}", object)),

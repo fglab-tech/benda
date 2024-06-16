@@ -1,25 +1,26 @@
 mod parser;
 
+use std::path::{self, Path};
+
 use pyo3::prelude::*;
 use rustpython_parser::{parse, Mode};
+use types::book::Book;
 
 mod benda_ffi;
 mod types;
 
-fn main() -> PyResult<()> {
-    let filename = String::from("main.py");
+fn main() {
+    let new_path = Path::new("./examples/quicksort.bend");
+    let bend_book = bend::load_file_to_book(new_path);
 
-    let code = std::fs::read_to_string(filename).unwrap();
-    let module = parse(code.as_str(), Mode::Module, "main.py").unwrap();
+    //let code = std::fs::read_to_string(new_path)
+    //    .map_err(|e| e.to_string())
+    //    .unwrap();
+    //let bend_book = bend::fun::load_book::do_parse_book(
+    //    &code,
+    //    new_path,
+    //    BendBook::default(),
+    //);
 
-    match module {
-        rustpython_parser::ast::Mod::Module(_mods) => {
-            //let mut parser = Parser::new(mods.body, 0);
-            //let val = parser.parse(&String::from("sum_tree"), &["tree".to_string()]);
-            //println!("Return {:?}", val);
-        }
-        _ => todo!(),
-    }
-
-    Ok(())
+    let book = Book::new(bend_book.unwrap());
 }

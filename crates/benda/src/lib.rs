@@ -9,6 +9,7 @@ use rustpython_parser::{parse, Mode};
 use types::book::Book;
 use types::tree::{Leaf, Node, Tree};
 use types::u24;
+use types::user_adt::UserAdt;
 mod benda_ffi;
 mod parser;
 mod types;
@@ -64,8 +65,6 @@ impl PyBjit {
                     let name = inner.getattr("__name__").unwrap();
                     let code = inner.getattr("__code__").unwrap();
                     let filename = code.getattr("co_filename").unwrap();
-
-                    println!("code: {:?}", code);
 
                     arg_names_temp = code.getattr("co_varnames").unwrap();
                     let arg_names =
