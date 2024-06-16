@@ -64,25 +64,25 @@ impl<'py> BendType for UserAdt<'py> {
 
                     if let Some(t) = extract_type_raw(attr.clone()) {
                         adt_fields.push(t.to_bend().unwrap());
-                    }
-
-                    if let Some(adt) = UserAdt::new(attr, &self.book) {
+                    } else if let Some(adt) = UserAdt::new(attr, &self.book) {
                         let new_adt = adt.to_bend();
                         adt_fields.push(new_adt.unwrap());
-                    }
+                    } else {
+                        let field_name = nam.split('/').nth(0).unwrap();
 
-                    let field_name = nam.split('/').nth(0).unwrap();
+                        let new_ctr = self
+                            .book
+                            .adts
+                            .get(&Name::new(field_name.to_string()));
 
-                    let new_ctr =
-                        self.book.adts.get(&Name::new(field_name.to_string()));
-
-                    for c in new_ctr.unwrap().ctrs.iter() {
-                        if c.1.is_empty() {
-                            adt_fields.push(imp::Expr::Ctr {
-                                name: c.0.clone(),
-                                args: vec![],
-                                kwargs: vec![],
-                            })
+                        for c in new_ctr.unwrap().ctrs.iter() {
+                            if c.1.is_empty() {
+                                adt_fields.push(imp::Expr::Ctr {
+                                    name: c.0.clone(),
+                                    args: vec![],
+                                    kwargs: vec![],
+                                })
+                            }
                         }
                     }
                 }
