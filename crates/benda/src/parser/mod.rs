@@ -24,20 +24,6 @@ enum FromExpr {
 }
 
 impl FromExpr {
-    pub fn to_expr(&self) -> Option<Expr> {
-        if let FromExpr::Expr(exp) = self {
-            return Some(exp.clone());
-        }
-        None
-    }
-
-    pub fn to_stmt(&self) -> Option<Stmt> {
-        if let FromExpr::Statement(stmt) = self {
-            return Some(stmt.clone());
-        }
-        None
-    }
-
     pub fn get_var_name(&self) -> Option<Name> {
         if let FromExpr::Expr(Expr::Var { nam }) = self {
             Some(nam.clone())
