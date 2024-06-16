@@ -1,20 +1,14 @@
-use std::alloc::GlobalAlloc;
 use std::cell::RefCell;
 
-use bend::fun::parser::TermParser;
-use bend::fun::{
-    self, Adt as BendAdt, Book as BendBook, CtrField, Definition as BendDef,
-    Name, Rule, Term,
-};
+use bend::fun::{self, Book as BendBook, Name, Rule};
 use bend::imp::{self, Expr, Stmt};
-use bend::run_book;
 use indexmap::IndexMap;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::{PyString, PyTuple};
 
 use super::user_adt::UserAdt;
-use super::{extract_num_raw, extract_type_raw, BendType, BuiltinType};
+use super::{extract_type_raw, BendType};
 use crate::benda_ffi;
 
 fn new_err<T>(str: String) -> PyResult<T> {
@@ -26,7 +20,6 @@ thread_local!(static GLOBAL_BOOK: RefCell<Option<BendBook>> = const { RefCell::n
 #[pyclass(name = "Ctr")]
 #[derive(Clone, Debug)]
 pub struct Ctr {
-    name: String,
     entire_name: String,
     fields: IndexMap<String, Option<Py<PyAny>>>,
 }
@@ -73,14 +66,6 @@ pub struct Ctrs {
     fields: IndexMap<String, Ctr>,
 }
 
-impl Ctrs {
-    fn new() -> Self {
-        Self {
-            fields: IndexMap::new(),
-        }
-    }
-}
-
 #[pymethods]
 impl Ctrs {
     fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<Py<Ctr>> {
@@ -99,7 +84,6 @@ impl Ctrs {
 pub struct Definition {
     arity: usize,
     name: String,
-    rules: Vec<Rule>,
 }
 
 #[pymethods]
@@ -121,9 +105,7 @@ impl Definition {
         let mut new_args: Vec<Expr> = vec![];
 
         if let Some(mut b) = bend_book.clone() {
-            let mut arg_num = 0;
-
-            for arg in args.iter() {
+            for (arg_num, arg) in args.iter().enumerate() {
                 let adt = UserAdt::new(arg.clone(), &b);
 
                 let new_arg: Expr;
@@ -157,8 +139,6 @@ impl Definition {
                 new_args.push(Expr::Var {
                     nam: arg_name.clone(),
                 });
-
-                arg_num += 1;
             }
 
             let first = Stmt::Return {
@@ -198,12 +178,6 @@ impl Definition {
 #[derive(Clone, Debug, Default)]
 pub struct Definitions {
     defs: IndexMap<String, Definition>,
-}
-
-impl Definitions {
-    fn new() -> Self {
-        Self::default()
-    }
 }
 
 #[pymethods]
@@ -252,7 +226,6 @@ impl Adts {
 
 #[pyclass(name = "Book")]
 pub struct Book {
-    bend_book: BendBook,
     adts: Adts,
     defs: Definitions,
 }
@@ -262,14 +235,11 @@ impl Book {
         let mut adts = Adts::new();
 
         for (adt_name, bend_adt) in bend_book.adts.iter() {
-            let mut new_adt = Adts::new();
-
             let mut all_ctrs = Ctrs::default();
 
             for (ctr_name, ctr_fields) in bend_adt.ctrs.iter() {
                 let new_name = ctr_name.split('/').last().unwrap().to_string();
                 let mut new_ctr = Ctr {
-                    name: new_name.clone(),
                     entire_name: ctr_name.to_string(),
                     fields: IndexMap::new(),
                 };
@@ -290,7 +260,6 @@ impl Book {
             let new_def = Definition {
                 arity: def.arity(),
                 name: def.name.to_string(),
-                rules: def.rules.clone(),
             };
             definitions.defs.insert(nam.to_string(), new_def);
         }
@@ -298,7 +267,6 @@ impl Book {
         GLOBAL_BOOK.set(Some(bend_book.clone()));
 
         Self {
-            bend_book,
             adts,
             defs: definitions,
         }

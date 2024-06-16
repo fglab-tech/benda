@@ -7,6 +7,7 @@ use pyo3::types::{PyAnyMethods, PyFloat, PyTypeMethods};
 use pyo3::{Bound, FromPyObject, PyAny, PyErr, PyTypeCheck};
 use rustpython_parser::ast::ExprCall;
 use tree::{Leaf, Node, Tree};
+use u24::U24;
 use user_adt::UserAdt;
 
 pub mod book;
@@ -59,9 +60,7 @@ pub fn extract_type_raw(arg: Bound<PyAny>) -> Option<Box<dyn BendType>> {
     let arg_type = BuiltinType::from(name.to_string());
 
     match arg_type {
-        BuiltinType::U24 => {
-            Some(Box::new(extract_inner::<u24::u24>(arg).unwrap()))
-        }
+        BuiltinType::U24 => Some(Box::new(extract_inner::<U24>(arg).unwrap())),
         BuiltinType::I32 => Some(extract_num_raw(arg, BuiltinType::I32)),
         BuiltinType::F32 => Some(extract_num_raw(arg, BuiltinType::F32)),
         _ => None,
@@ -75,7 +74,7 @@ pub fn extract_type(arg: Bound<PyAny>, book: &Book) -> ToBendResult {
     let arg_type = BuiltinType::from(name.to_string());
 
     match arg_type {
-        BuiltinType::U24 => extract_inner::<u24::u24>(arg).unwrap().to_bend(),
+        BuiltinType::U24 => extract_inner::<U24>(arg).unwrap().to_bend(),
         BuiltinType::I32 => extract_num(arg, BuiltinType::I32),
         BuiltinType::F32 => extract_num(arg, BuiltinType::F32),
         BuiltinType::Tree => extract_inner::<Tree>(arg).unwrap().to_bend(),

@@ -1,6 +1,6 @@
 use bend::fun::{Adt, Book, Name};
 use bend::imp::{self};
-use pyo3::types::{PyAnyMethods, PyString, PyTuple, PyTypeMethods};
+use pyo3::types::{PyAnyMethods, PyString, PyTypeMethods};
 use pyo3::{Bound, PyAny, PyErr};
 
 use super::{extract_type_raw, BendType};

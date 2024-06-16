@@ -64,21 +64,18 @@ pub struct Parser<'py> {
     book: Book,
     definitions: Vec<imp::Definition>,
     ctx: Option<Context>,
-    index: usize,
     fun_args: Vec<(String, Bound<'py, PyAny>)>,
 }
 
 impl<'py> Parser<'py> {
     pub fn new(
         statements: Vec<rStmt>,
-        index: usize,
         fun_args: Vec<(String, Bound<'py, PyAny>)>,
     ) -> Self {
         Self {
             statements,
             book: bend::fun::Book::builtins(),
             definitions: vec![],
-            index,
             ctx: None,
             fun_args,
         }
@@ -488,7 +485,7 @@ impl<'py> Parser<'py> {
                 }
             }
 
-            if ctx.now == CurContext::Main && !ctx.vars.contains(&name) {
+            if ctx.now == CurContext::Main && !ctx.vars.contains(name) {
                 return self.parse_vec(stmts, index + 1);
             }
         }
@@ -530,12 +527,7 @@ impl<'py> Parser<'py> {
         }
     }
 
-    fn parse_stmt_expr(
-        &mut self,
-        expr: &StmtExpr,
-        stmts: &Vec<rStmt>,
-        index: usize,
-    ) -> Option<FromExpr> {
+    fn parse_stmt_expr(&mut self, expr: &StmtExpr) -> Option<FromExpr> {
         if let Some(ctx) = &self.ctx {
             if ctx.now == CurContext::Main {
                 let val = self.parse_expr_type(*expr.value.clone());
@@ -649,7 +641,7 @@ impl<'py> Parser<'py> {
                 }
                 None => None,
             },
-            rStmt::Expr(expr) => self.parse_stmt_expr(expr, stmts, index),
+            rStmt::Expr(expr) => self.parse_stmt_expr(expr),
             rStmt::Match(m) => {
                 if let Some(val) = self.parse_match(m, stmts, &index) {
                     return Some(FromExpr::Statement(val));
@@ -745,7 +737,7 @@ impl<'py> Parser<'py> {
 
         for arg in parsed_types.clone() {
             match arg.1 {
-                imp::Expr::Var { nam } => {}
+                imp::Expr::Var { nam: _ } => {}
                 _ => new_args.push(Expr::Var {
                     nam: Name::new(arg.0),
                 }),
@@ -762,13 +754,11 @@ impl<'py> Parser<'py> {
             }),
         };
 
-        return Some(imp::Definition {
+        Some(imp::Definition {
             name: Name::new("main"),
             params: vec![],
             body: first,
-        });
-
-        None
+        })
     }
 
     fn parse_class_def(&mut self, class: &StmtClassDef) {
@@ -859,20 +849,6 @@ impl<'py> Parser<'py> {
     }
 
     fn parse_function_def(&mut self, fun_def: &StmtFunctionDef) {
-        let mut is_bjit = false;
-
-        for dec in &fun_def.decorator_list {
-            if let rExpr::Name(nam) = dec {
-                if nam.id.to_string() == "bjit" {
-                    is_bjit = true;
-                }
-            }
-        }
-
-        //if !is_bjit {
-        //return;
-        //}
-
         let args = *fun_def.args.clone();
         let mut names: Vec<Name> = vec![];
 
