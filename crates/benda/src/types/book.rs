@@ -13,10 +13,9 @@ use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::{PyString, PyTuple};
 
-use crate::benda_ffi;
-
 use super::user_adt::UserAdt;
 use super::{extract_num_raw, extract_type_raw, BendType, BuiltinType};
+use crate::benda_ffi;
 
 fn new_err<T>(str: String) -> PyResult<T> {
     Err(PyException::new_err(str))
