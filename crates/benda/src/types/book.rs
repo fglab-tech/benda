@@ -39,6 +39,10 @@ pub struct Ctr {
 
 #[pymethods]
 impl Ctr {
+    fn __str__(&self) -> String {
+        format!("Bend ADT: {}", self.entire_name)
+    }
+
     #[pyo3(signature = (*args))]
     fn __call__(&mut self, args: Bound<'_, PyTuple>) -> PyResult<Py<Ctr>> {
         let py = args.py();
@@ -100,6 +104,10 @@ pub struct Definition {
 
 #[pymethods]
 impl Definition {
+    fn __str__(&self) -> String {
+        format!("Bend function: {}({})", self.name, self.arity)
+    }
+
     #[pyo3(signature = (*args))]
     fn __call__(&mut self, args: Bound<'_, PyTuple>) -> PyResult<Py<PyAny>> {
         let py = args.py();
