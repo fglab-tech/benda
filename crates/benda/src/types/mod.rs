@@ -39,6 +39,7 @@ pub fn extract_num_raw(
     t_type: BuiltinType,
 ) -> Box<dyn BendType> {
     match t_type {
+        BuiltinType::U24 => Box::new(arg.to_string().parse::<i32>().unwrap()),
         BuiltinType::I32 => Box::new(arg.to_string().parse::<i32>().unwrap()),
         BuiltinType::F32 => Box::new(arg.to_string().parse::<f32>().unwrap()),
         _ => unreachable!(),
@@ -60,7 +61,8 @@ pub fn extract_type_raw(arg: Bound<PyAny>) -> Option<Box<dyn BendType>> {
     let arg_type = BuiltinType::from(name.to_string());
 
     match arg_type {
-        BuiltinType::U24 => Some(Box::new(extract_inner::<U24>(arg).unwrap())),
+        //BuiltinType::U24 => Some(Box::new(extract_inner::<U24>(arg).unwrap())),
+        BuiltinType::U24 => Some(extract_num_raw(arg, BuiltinType::U24)),
         BuiltinType::I32 => Some(extract_num_raw(arg, BuiltinType::I32)),
         BuiltinType::F32 => Some(extract_num_raw(arg, BuiltinType::F32)),
         _ => None,
@@ -158,7 +160,7 @@ impl From<String> for BuiltinType {
     fn from(value: String) -> Self {
         match value.as_str() {
             "float" => BuiltinType::F32,
-            "int" => BuiltinType::I32,
+            "int" => BuiltinType::U24,
             "benda.u24" => BuiltinType::U24,
             "u24" => BuiltinType::U24,
             "benda.Node" => BuiltinType::Node,
@@ -188,7 +190,8 @@ impl BendType for f32 {
 impl BendType for i32 {
     fn to_bend(&self) -> ToBendResult {
         Ok(imp::Expr::Num {
-            val: Num::I24(*self),
+            //val: Num::I24(*self),
+            val: Num::U24(self.to_u32().unwrap()),
         })
     }
 }

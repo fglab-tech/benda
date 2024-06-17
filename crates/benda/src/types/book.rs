@@ -17,6 +17,19 @@ fn new_err<T>(str: String) -> PyResult<T> {
 
 thread_local!(static GLOBAL_BOOK: RefCell<Option<BendBook>> = const { RefCell::new(None) });
 
+#[pyclass(name = "Term")]
+#[derive(Clone, Debug)]
+pub struct Term {
+    term: fun::Term,
+}
+
+#[pymethods]
+impl Term {
+    fn __str__(&self) -> String {
+        self.term.to_string()
+    }
+}
+
 #[pyclass(name = "Ctr")]
 #[derive(Clone, Debug)]
 pub struct Ctr {
@@ -51,7 +64,6 @@ impl Ctr {
             return Ok(PyString::new_bound(py, &self.entire_name).into_py(py));
         }
 
-        // TODO : FIX THIS
         if let Some(val) = self.fields.get(&object.to_string()) {
             Ok(val.clone().into_py(object.py()))
         } else {
@@ -106,39 +118,47 @@ impl Definition {
 
         if let Some(mut b) = bend_book.clone() {
             for (arg_num, arg) in args.iter().enumerate() {
-                let adt = UserAdt::new(arg.clone(), &b);
-
-                let new_arg: Expr;
-
-                if let Some(adt) = adt {
-                    new_arg = adt.to_bend().unwrap();
-                } else {
-                    new_arg = extract_type_raw(arg.clone())
-                        .unwrap()
-                        .to_bend()
-                        .unwrap();
-                }
-
                 let arg_name = Name::new(format!("arg{}", arg_num));
 
-                let u_type = new_arg.clone().to_fun();
+                let mut u_type: Option<fun::Term> = None;
 
-                let def = fun::Definition {
-                    name: arg_name.clone(),
-                    rules: vec![Rule {
-                        pats: vec![],
-                        body: u_type,
-                    }],
-                    builtin: false,
-                };
+                if let Ok(term) = arg.downcast::<Term>() {
+                    if let Ok(new_term) = term.extract::<Term>() {
+                        u_type = Some(new_term.term);
+                    }
+                } else {
+                    let adt = UserAdt::new(arg.clone(), &b);
 
-                dbg!(def.clone());
+                    let new_arg: Expr;
 
-                b.defs.insert(arg_name.clone(), def);
+                    if let Some(adt) = adt {
+                        new_arg = adt.to_bend().unwrap();
+                    } else {
+                        new_arg = extract_type_raw(arg.clone())
+                            .unwrap()
+                            .to_bend()
+                            .unwrap();
+                    }
 
-                new_args.push(Expr::Var {
-                    nam: arg_name.clone(),
-                });
+                    u_type = Some(new_arg.clone().to_fun());
+                }
+
+                if let Some(n_type) = u_type {
+                    let def = fun::Definition {
+                        name: arg_name.clone(),
+                        rules: vec![Rule {
+                            pats: vec![],
+                            body: n_type,
+                        }],
+                        builtin: false,
+                    };
+
+                    b.defs.insert(arg_name.clone(), def);
+
+                    new_args.push(Expr::Var {
+                        nam: arg_name.clone(),
+                    });
+                }
             }
 
             let first = Stmt::Return {
@@ -160,14 +180,17 @@ impl Definition {
             b.defs
                 .insert(Name::new("main"), main_def.to_fun(true).unwrap());
 
-            println!("Bend: {}", b.display_pretty());
+            //println!("Bend: {}", b.display_pretty());
 
             let res = benda_ffi::run(&b.clone());
 
             GLOBAL_BOOK.set(bend_book);
 
-            return Ok(PyString::new_bound(py, &res.unwrap().0.to_string())
-                .into_py(py));
+            let ret_term = Term {
+                term: res.unwrap().0,
+            };
+
+            return Ok(ret_term.into_py(py));
         }
 
         new_err(format!("Could not execute function {}", self.name))
