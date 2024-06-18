@@ -3,6 +3,7 @@ use std::cell::RefCell;
 use bend::fun::{self, Book as BendBook, Name, Rule};
 use bend::imp::{self, Expr, Stmt};
 use indexmap::IndexMap;
+use num_traits::ToPrimitive;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::{PyString, PyTuple};
@@ -23,10 +24,45 @@ pub struct Term {
     term: fun::Term,
 }
 
+fn get_list(lam: &fun::Term, vals: &mut Vec<String>) {
+    match lam {
+        fun::Term::Lam { tag, pat, bod } => {
+            get_list(bod, vals);
+        }
+        fun::Term::App { tag, fun, arg } => {
+            get_list(fun, vals);
+            get_list(arg, vals);
+        }
+        fun::Term::Num { val } => match val {
+            fun::Num::U24(v) => {
+                if v.to_u32().unwrap() != 1 && v.to_u32().unwrap() != 0 {
+                    vals.push(v.to_string())
+                }
+            }
+            fun::Num::I24(v) => {
+                if v.to_u32().unwrap() != 1 && v.to_u32().unwrap() != 0 {
+                    vals.push(v.to_string())
+                }
+            }
+            fun::Num::F24(v) => vals.push(v.to_string()),
+        },
+        _ => {}
+    }
+}
+
 #[pymethods]
 impl Term {
     fn __str__(&self) -> String {
         self.term.to_string()
+    }
+
+    fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<PyObject> {
+        let py = object.py();
+
+        let mut vals: Vec<String> = vec![];
+        get_list(&self.term, &mut vals);
+
+        Ok(vals.into_py(py))
     }
 }
 

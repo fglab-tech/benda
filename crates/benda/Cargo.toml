@@ -6,10 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 name = "benda"
-#crate-type = ["cdylib"]
-
-# Debug purposes
-crate-type = ["lib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { version = "0.21.2", features = ["extension-module"] }
