@@ -1,5 +1,11 @@
 {
   "recommendations": [
-    "rust-lang.rust-analyzer"
+    "rust-lang.rust-analyzer",
+    "editorconfig.editorconfig",
+    "streetsidesoftware.code-spell-checker",
+    "mkhl.direnv",
+    "tamasfe.even-better-toml",
+    "jnoortheen.nix-ide",
+    "foxundermoon.shell-format"
   ]
 }
