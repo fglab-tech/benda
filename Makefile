@@ -17,3 +17,6 @@ rust-fmt:
 build:
 	cd crates/benda; \
 		maturin develop
+
+run_examples:
+	python -m examples.quicksort
