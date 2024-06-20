@@ -8,9 +8,13 @@ edition = "2021"
 name = "benda"
 crate-type = ["cdylib"]
 
+# Enable the `experimental-inspect` feature to be able to generate Typing to Python.
 [dependencies]
-pyo3 = { version = "0.21.2", features = ["extension-module"] }
-bend-lang = "0.2.33"
+pyo3 = { version = "0.21.2", features = [
+    "extension-module",
+    "experimental-inspect",
+] }
+bend-lang = "=0.2.33"
 num-bigint = "0.4.5"
 num-traits = "0.2.19"
 rustpython-parser = "0.3.1"

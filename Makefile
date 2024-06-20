@@ -18,10 +18,5 @@ build:
 	cd crates/benda; \
 		maturin develop
 
-<<<<<<< HEAD
-run: build
-	python3 tmp/quicksort.py
-=======
 run_examples:
 	python -m examples.quicksort
->>>>>>> upstream/master

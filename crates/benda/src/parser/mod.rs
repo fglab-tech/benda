@@ -863,6 +863,7 @@ impl<'py> Parser<'py> {
                 }
                 // Treats an type alias, example: Type = A | B
                 rStmt::Assign(assign) => self.parse_type_alias(&assign),
+                // Treats an dataclass case
                 rStmt::ClassDef(class) => self.parse_class_def(&class),
                 _ => {}
             }

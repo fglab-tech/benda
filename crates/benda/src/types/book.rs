@@ -1,12 +1,17 @@
 use std::cell::RefCell;
+use std::ffi::CString;
+use std::vec;
 
 use bend::fun::{self, Book as BendBook, Name, Rule};
 use bend::imp::{self, Expr, Stmt};
 use indexmap::IndexMap;
 use num_traits::ToPrimitive;
 use pyo3::exceptions::PyException;
+use pyo3::ffi::PyType_FromSpec;
+use pyo3::inspect::types::{ModuleName, TypeInfo};
 use pyo3::prelude::*;
-use pyo3::types::{PyString, PyTuple};
+use pyo3::types::{PyString, PyTuple, PyType};
+use pyo3::PyTypeInfo;
 
 use super::user_adt::UserAdt;
 use super::{extract_type_raw, BendType};
@@ -66,6 +71,16 @@ impl Term {
     }
 }
 
+#[pyclass(name = "CtrEnum")]
+#[derive(Clone, Debug)]
+enum CtrEnum {
+    A { name: String, ctr: Ctr },
+    B { name: String, ctr: Ctr },
+    C { name: String, ctr: Ctr },
+    D { name: String, ctr: Ctr },
+    E { name: String, ctr: Ctr },
+}
+
 #[pyclass(name = "Ctr")]
 #[derive(Clone, Debug)]
 pub struct Ctr {
@@ -75,18 +90,38 @@ pub struct Ctr {
 
 #[pymethods]
 impl Ctr {
+    #[new]
+    #[pyo3(signature = (*args))]
+    fn new(args: Bound<'_, PyTuple>) -> Self {
+        todo!()
+    }
+
+    #[classattr]
+    fn __match_args__() -> PyResult<Py<PyAny>> {
+        Python::with_gil(|py| {
+            Ok(PyTuple::new_bound(py, vec!["1", "2", "3", "4", "5"])
+                .into_py(py))
+        })
+    }
+
+    fn __instancecheck__(&self, instance: Bound<PyAny>) -> bool {
+        dbg!("si");
+        todo!()
+    }
+
     fn __str__(&self) -> String {
         format!("Bend ADT: {}", self.entire_name)
     }
 
     #[pyo3(signature = (*args))]
-    fn __call__(&mut self, args: Bound<'_, PyTuple>) -> PyResult<Py<Ctr>> {
+    fn __call__(&mut self, args: Bound<'_, PyTuple>) -> PyResult<PyObject> {
         let py = args.py();
+
         for (i, field) in self.fields.iter_mut().enumerate() {
             field.1.replace(args.get_item(i).unwrap().to_object(py));
         }
 
-        Ok(Py::new(py, self.clone()).unwrap())
+        Ok(Py::new(py, self.clone()).unwrap().as_any().clone())
     }
 
     fn __setattr__(&mut self, field: Bound<PyAny>, value: Bound<PyAny>) {
@@ -102,6 +137,13 @@ impl Ctr {
 
         if field == "type" {
             return Ok(PyString::new_bound(py, &self.entire_name).into_py(py));
+        }
+
+        if let Ok(val) = object.to_string().parse::<usize>() {
+            let return_val = self.fields.get_index(val - 1);
+            if let Some(return_val) = return_val {
+                return Ok(return_val.1.clone().into_py(py));
+            }
         }
 
         if let Some(val) = self.fields.get(&object.to_string()) {
@@ -120,11 +162,25 @@ pub struct Ctrs {
 
 #[pymethods]
 impl Ctrs {
-    fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<Py<Ctr>> {
+    // TODO: Return Type or Constructor
+
+    fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<pyo3::PyObject> {
         let py = object.py();
 
+        if object.to_string().starts_with("t") {
+            let b_name = object.to_string();
+            let name = b_name.strip_prefix("t").unwrap();
+
+            let class_name =
+                self.fields.get(name).unwrap().entire_name.to_string();
+
+            let type_obj = Ctr::type_object_bound(py);
+
+            return Ok(type_obj.to_object(py));
+        }
+
         if let Some(val) = self.fields.get(&object.to_string()) {
-            Ok(Py::new(py, val.clone()).unwrap())
+            Ok(Py::new(py, val.clone()).unwrap().into_any())
         } else {
             new_err(format!("Could not find attr {}", object))
         }
