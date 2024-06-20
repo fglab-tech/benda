@@ -71,16 +71,6 @@ impl Term {
     }
 }
 
-#[pyclass(name = "CtrEnum")]
-#[derive(Clone, Debug)]
-enum CtrEnum {
-    A { name: String, ctr: Ctr },
-    B { name: String, ctr: Ctr },
-    C { name: String, ctr: Ctr },
-    D { name: String, ctr: Ctr },
-    E { name: String, ctr: Ctr },
-}
-
 #[pyclass(name = "Ctr")]
 #[derive(Clone, Debug)]
 pub struct Ctr {
@@ -170,9 +160,6 @@ impl Ctrs {
         if object.to_string().starts_with("t") {
             let b_name = object.to_string();
             let name = b_name.strip_prefix("t").unwrap();
-
-            let class_name =
-                self.fields.get(name).unwrap().entire_name.to_string();
 
             let type_obj = Ctr::type_object_bound(py);
 
@@ -279,8 +266,6 @@ impl Definition {
 
             b.defs
                 .insert(Name::new("main"), main_def.to_fun(true).unwrap());
-
-            //println!("Bend: {}", b.display_pretty());
 
             let res = benda_ffi::run(&b.clone());
 
