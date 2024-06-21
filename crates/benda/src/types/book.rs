@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::ffi::CString;
 use std::vec;
 
 use bend::fun::{self, Book as BendBook, Name, Rule};
@@ -7,10 +6,10 @@ use bend::imp::{self, Expr, Stmt};
 use indexmap::IndexMap;
 use num_traits::ToPrimitive;
 use pyo3::exceptions::PyException;
-use pyo3::ffi::PyType_FromSpec;
+use pyo3::ffi::{PyMethodDef, PyType_FromSpec};
 use pyo3::inspect::types::{ModuleName, TypeInfo};
 use pyo3::prelude::*;
-use pyo3::types::{PyString, PyTuple, PyType};
+use pyo3::types::{PyList, PyMapping, PyString, PyTuple, PyType};
 use pyo3::PyTypeInfo;
 
 use super::user_adt::UserAdt;
@@ -29,7 +28,7 @@ pub struct Term {
     term: fun::Term,
 }
 
-fn get_list(lam: &fun::Term, vals: &mut Vec<String>) {
+fn get_list(lam: &fun::Term, vals: &mut Vec<i32>) {
     match lam {
         fun::Term::Lam { tag, pat, bod } => {
             get_list(bod, vals);
@@ -41,15 +40,15 @@ fn get_list(lam: &fun::Term, vals: &mut Vec<String>) {
         fun::Term::Num { val } => match val {
             fun::Num::U24(v) => {
                 if v.to_u32().unwrap() != 1 && v.to_u32().unwrap() != 0 {
-                    vals.push(v.to_string())
+                    vals.push(v.to_i32().unwrap())
                 }
             }
             fun::Num::I24(v) => {
                 if v.to_u32().unwrap() != 1 && v.to_u32().unwrap() != 0 {
-                    vals.push(v.to_string())
+                    vals.push(v.to_i32().unwrap())
                 }
             }
-            fun::Num::F24(v) => vals.push(v.to_string()),
+            fun::Num::F24(v) => vals.push(v.to_i32().unwrap()),
         },
         _ => {}
     }
@@ -64,7 +63,7 @@ impl Term {
     fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<PyObject> {
         let py = object.py();
 
-        let mut vals: Vec<String> = vec![];
+        let mut vals: Vec<i32> = vec![];
         get_list(&self.term, &mut vals);
 
         Ok(vals.into_py(py))
@@ -75,6 +74,7 @@ impl Term {
 #[derive(Clone, Debug)]
 pub struct Ctr {
     entire_name: String,
+    name: String,
     fields: IndexMap<String, Option<Py<PyAny>>>,
 }
 
@@ -92,11 +92,6 @@ impl Ctr {
             Ok(PyTuple::new_bound(py, vec!["1", "2", "3", "4", "5"])
                 .into_py(py))
         })
-    }
-
-    fn __instancecheck__(&self, instance: Bound<PyAny>) -> bool {
-        dbg!("si");
-        todo!()
     }
 
     fn __str__(&self) -> String {
@@ -127,6 +122,10 @@ impl Ctr {
 
         if field == "type" {
             return Ok(PyString::new_bound(py, &self.entire_name).into_py(py));
+        }
+
+        if &object.to_string() == "name" {
+            return Ok(PyString::new_bound(py, &self.name).into());
         }
 
         if let Ok(val) = object.to_string().parse::<usize>() {
@@ -348,6 +347,7 @@ impl Book {
             for (ctr_name, ctr_fields) in bend_adt.ctrs.iter() {
                 let new_name = ctr_name.split('/').last().unwrap().to_string();
                 let mut new_ctr = Ctr {
+                    name: new_name.clone(),
                     entire_name: ctr_name.to_string(),
                     fields: IndexMap::new(),
                 };
