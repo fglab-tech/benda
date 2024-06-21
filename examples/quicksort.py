@@ -71,6 +71,7 @@ def main():
     cons_list = to_cons_list(data)
 
     sorted_res = book.defs.Sort(cons_list)
+    #sorted_arr = from_cons_list(sorted_res)
     sorted_arr = sorted_res.list
     print("Result:  ", sorted_arr)
 
