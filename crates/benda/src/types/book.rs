@@ -9,9 +9,9 @@ use num_traits::ToPrimitive;
 use pyo3::exceptions::PyException;
 use pyo3::ffi::{PyMethodDef, PyType_FromSpec, PyType_IsSubtype};
 use pyo3::inspect::types::{self, ModuleName, TypeInfo};
+use pyo3::prelude::*;
 use pyo3::types::{PyList, PyMapping, PyString, PyTuple, PyType};
-use pyo3::{prelude::*, PyClass};
-use pyo3::{type_object, PyTypeCheck, PyTypeInfo};
+use pyo3::{type_object, PyClass, PyTypeCheck, PyTypeInfo};
 
 use super::user_adt::UserAdt;
 use super::{extract_type_raw, BendType};
