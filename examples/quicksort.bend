@@ -37,7 +37,7 @@ let state = (^ state(<< state 5))
 # Sorts and sums n random numbers
 # Result: 12741879
 (Main) =
-(Sum(Sort(Rnd 0x100 1)))
+(Sum(Sort(Rnd 10 1000)))
 
 # Use an argument from cli
 # (Main n) = (Sum (Sort (Rnd (<< 1 n) 1)))

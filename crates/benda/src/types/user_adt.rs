@@ -23,23 +23,23 @@ impl<'py> UserAdt<'py> {
         //    return None;
         //}
 
-        let binding = data.getattr("type").unwrap().to_string();
+        if let Ok(binding) = data.getattr("type") {
+            for (nam, _ctr) in &book.ctrs {
+                let new_nam = nam.to_string();
+                let two_names = new_nam.split_once('/').unwrap();
 
-        for (nam, _ctr) in &book.ctrs {
-            let new_nam = nam.to_string();
-            let two_names = new_nam.split_once('/').unwrap();
-
-            if nam.to_string() == binding {
-                return Some(Self {
-                    book: book.clone(),
-                    data,
-                    entire_nam: Name::new(new_nam.clone()),
-                    adt: book
-                        .adts
-                        .get(&Name::new(two_names.0.to_string()))
-                        .unwrap()
-                        .clone(),
-                });
+                if nam.to_string() == binding.to_string() {
+                    return Some(Self {
+                        book: book.clone(),
+                        data,
+                        entire_nam: Name::new(new_nam.clone()),
+                        adt: book
+                            .adts
+                            .get(&Name::new(two_names.0.to_string()))
+                            .unwrap()
+                            .clone(),
+                    });
+                }
             }
         }
 

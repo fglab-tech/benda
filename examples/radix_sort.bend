@@ -145,4 +145,4 @@ def gen_go(n, x):
       return Arr/Node{a: gen_go(n-1, a), b: gen_go(n-1, b)}
 
 
-Main = (sum(sort(reverse(gen 4))))
+Main = (sum(sort(reverse(gen 10))))

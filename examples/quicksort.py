@@ -61,7 +61,7 @@ def from_cons_list(xs) -> list[u24]:
                 xs = tail
 
 def main():
-    data = gen_list(100, 1000)
+    data = gen_list(10, 1000)
     print("Data:    ", data)
 
     expected = sorted(data)
@@ -73,6 +73,7 @@ def main():
     #sorted_arr = from_cons_list(sorted_res)
     sorted_arr = sorted_res.to_list()
     print("Result:  ", sorted_arr)
+    print("Sum: ", book.defs.Sum(sorted_res))
 
     #mocked_sorted = mock_sort(cons_list)
     #mocked_sorted_arr = mocked_from_cons_list(mocked_sorted)
