@@ -53,13 +53,12 @@ def from_cons_list(xs) -> list[u24]:
     """Converts a Bend cons-list to a Python list"""
     result: list[u24] = []
     while True:
-        match xs.name:
-            case List.Nil.name:
+        match xs:
+            case List.tNil():
                 return result
-            case List.Cons.name:
-                value = xs.head
+            case List.tCons(value, tail):
                 result.append(value)
-                xs = xs.tail
+                xs = tail
 
 def main():
     data = gen_list(10, 1000)

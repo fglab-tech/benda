@@ -36,21 +36,14 @@ fn get_list(lam: &fun::Term, vals: &mut Vec<i32>) {
         }
         fun::Term::App { tag, fun, arg } => {
             get_list(fun, vals);
-            get_list(arg, vals);
+            if let fun::Term::Num { val } = **arg {
+                match val {
+                    fun::Num::U24(v) => vals.push(v.to_i32().unwrap()),
+                    fun::Num::I24(v) => vals.push(v.to_i32().unwrap()),
+                    fun::Num::F24(v) => vals.push(v.to_i32().unwrap()),
+                }
+            }
         }
-        fun::Term::Num { val } => match val {
-            fun::Num::U24(v) => {
-                if v.to_u32().unwrap() != 1 && v.to_u32().unwrap() != 0 {
-                    vals.push(v.to_i32().unwrap())
-                }
-            }
-            fun::Num::I24(v) => {
-                if v.to_u32().unwrap() != 1 && v.to_u32().unwrap() != 0 {
-                    vals.push(v.to_i32().unwrap())
-                }
-            }
-            fun::Num::F24(v) => vals.push(v.to_i32().unwrap()),
-        },
         _ => {}
     }
 }
@@ -213,21 +206,8 @@ pub struct Ctrs {
     second: Option<Ctr2>,
 }
 
-fn create_type_for_ctr() {
-    Python::with_gil(|py| {
-        let type_obj = Ctr::type_object_raw(py);
-        let ctr_type = types::TypeInfo::builtin("ctr");
-
-        unsafe {
-            dbg!(PyType_IsSubtype(type_obj, type_obj));
-        }
-    });
-}
-
 #[pymethods]
 impl Ctrs {
-    // TODO: Return Type or Constructor
-
     fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<pyo3::PyObject> {
         let py = object.py();
 

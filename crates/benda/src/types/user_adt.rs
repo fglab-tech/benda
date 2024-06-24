@@ -18,9 +18,10 @@ impl<'py> UserAdt<'py> {
             return None;
         }
 
-        if data.clone().get_type().qualname().unwrap() != "Ctr" {
-            return None;
-        }
+        // TODO: make check for every Ctr
+        //if data.clone().get_type().qualname().unwrap() != "Ctr" {
+        //    return None;
+        //}
 
         let binding = data.getattr("type").unwrap().to_string();
 
