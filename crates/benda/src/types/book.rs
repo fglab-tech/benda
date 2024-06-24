@@ -60,13 +60,13 @@ impl Term {
         self.term.to_string()
     }
 
-    fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<PyObject> {
-        let py = object.py();
+    fn to_list(&self) -> PyResult<PyObject> {
+        Python::with_gil(|py| {
+            let mut vals: Vec<i32> = vec![];
+            get_list(&self.term, &mut vals, &mut false);
 
-        let mut vals: Vec<i32> = vec![];
-        get_list(&self.term, &mut vals, &mut false);
-
-        Ok(vals.into_py(py))
+            Ok(vals.into_py(py))
+        })
     }
 }
 

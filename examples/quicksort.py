@@ -71,7 +71,7 @@ def main():
 
     sorted_res = book.defs.Sort(cons_list)
     #sorted_arr = from_cons_list(sorted_res)
-    sorted_arr = sorted_res.list
+    sorted_arr = sorted_res.to_list()
     print("Result:  ", sorted_arr)
 
     #mocked_sorted = mock_sort(cons_list)
