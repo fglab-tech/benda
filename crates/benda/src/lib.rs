@@ -32,7 +32,7 @@ fn load_book_from_file(py: Python, path: Py<PyString>) -> PyResult<Py<Book>> {
     //    BendBook::default(),
     //);
 
-    let book = Book::new(bend_book.unwrap());
+    let book = Book::new(&mut bend_book.unwrap());
 
     Ok(Py::new(py, book).unwrap())
 }

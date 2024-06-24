@@ -7,11 +7,9 @@ use bend::imp::{self, Expr, Stmt};
 use indexmap::IndexMap;
 use num_traits::ToPrimitive;
 use pyo3::exceptions::PyException;
-use pyo3::ffi::{PyMethodDef, PyType_FromSpec, PyType_IsSubtype};
-use pyo3::inspect::types::{self, ModuleName, TypeInfo};
 use pyo3::prelude::*;
-use pyo3::types::{PyList, PyMapping, PyString, PyTuple, PyType};
-use pyo3::{type_object, PyClass, PyTypeCheck, PyTypeInfo};
+use pyo3::types::{PyString, PyTuple};
+use pyo3::PyTypeInfo;
 
 use super::user_adt::UserAdt;
 use super::{extract_type_raw, BendType};
@@ -29,28 +27,29 @@ pub struct Term {
     term: fun::Term,
 }
 
-fn get_list(lam: &fun::Term, vals: &mut Vec<i32>) {
+fn get_list(lam: &fun::Term, vals: &mut Vec<i32>, print: &mut bool) {
     match lam {
-        fun::Term::Lam { tag, pat, bod } => {
-            get_list(bod, vals);
+        fun::Term::Lam {
+            tag: _,
+            pat: _,
+            bod,
+        } => {
+            get_list(bod, vals, print);
         }
-        fun::Term::App { tag, fun, arg } => {
-            get_list(fun, vals);
-            get_list(arg, vals);
+        fun::Term::App { tag: _, fun, arg } => {
+            get_list(fun, vals, print);
+            if let fun::Term::Num { val } = **arg {
+                if *print {
+                    match val {
+                        fun::Num::U24(v) => vals.push(v.to_i32().unwrap()),
+                        fun::Num::I24(v) => vals.push(v.to_i32().unwrap()),
+                        fun::Num::F24(v) => vals.push(v.to_i32().unwrap()),
+                    }
+                }
+                *print = !(*print);
+            }
+            get_list(arg, vals, print);
         }
-        fun::Term::Num { val } => match val {
-            fun::Num::U24(v) => {
-                if v.to_u32().unwrap() != 1 && v.to_u32().unwrap() != 0 {
-                    vals.push(v.to_i32().unwrap())
-                }
-            }
-            fun::Num::I24(v) => {
-                if v.to_u32().unwrap() != 1 && v.to_u32().unwrap() != 0 {
-                    vals.push(v.to_i32().unwrap())
-                }
-            }
-            fun::Num::F24(v) => vals.push(v.to_i32().unwrap()),
-        },
         _ => {}
     }
 }
@@ -65,7 +64,7 @@ impl Term {
         let py = object.py();
 
         let mut vals: Vec<i32> = vec![];
-        get_list(&self.term, &mut vals);
+        get_list(&self.term, &mut vals, &mut false);
 
         Ok(vals.into_py(py))
     }
@@ -213,21 +212,8 @@ pub struct Ctrs {
     second: Option<Ctr2>,
 }
 
-fn create_type_for_ctr() {
-    Python::with_gil(|py| {
-        let type_obj = Ctr::type_object_raw(py);
-        let ctr_type = types::TypeInfo::builtin("ctr");
-
-        unsafe {
-            dbg!(PyType_IsSubtype(type_obj, type_obj));
-        }
-    });
-}
-
 #[pymethods]
 impl Ctrs {
-    // TODO: Return Type or Constructor
-
     fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<pyo3::PyObject> {
         let py = object.py();
 
@@ -423,7 +409,7 @@ pub struct Book {
 }
 
 impl Book {
-    pub fn new(bend_book: BendBook) -> Self {
+    pub fn new(bend_book: &mut BendBook) -> Self {
         let mut adts = Adts::new();
 
         for (adt_name, bend_adt) in bend_book.adts.iter() {
@@ -485,6 +471,9 @@ impl Book {
             };
             definitions.defs.insert(nam.to_string(), new_def);
         }
+
+        bend_book.defs.shift_remove(&Name::new("Main"));
+        bend_book.defs.shift_remove(&Name::new("main"));
 
         GLOBAL_BOOK.set(Some(bend_book.clone()));
 

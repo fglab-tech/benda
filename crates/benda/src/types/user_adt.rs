@@ -1,6 +1,6 @@
 use bend::fun::{Adt, Book, Name};
 use bend::imp::{self};
-use pyo3::types::{PyAnyMethods, PyString, PyTypeMethods};
+use pyo3::types::{PyAnyMethods, PyString};
 use pyo3::{Bound, PyAny, PyErr};
 
 use super::{extract_type_raw, BendType};
@@ -18,9 +18,10 @@ impl<'py> UserAdt<'py> {
             return None;
         }
 
-        if data.clone().get_type().qualname().unwrap() != "Ctr" {
-            return None;
-        }
+        // TODO: make check for every Ctr
+        //if data.clone().get_type().qualname().unwrap() != "Ctr" {
+        //    return None;
+        //}
 
         let binding = data.getattr("type").unwrap().to_string();
 
