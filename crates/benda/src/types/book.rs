@@ -231,7 +231,7 @@ impl Definition {
 
         let bend_book = GLOBAL_BOOK.take();
 
-        if self.arity != args.len() {
+        if self.arity != args.len() && self.arity != 0 {
             return new_err(format!(
                 "Function has arity {} and received {} arguments",
                 self.arity,
