@@ -94,6 +94,13 @@ macro_rules! generate_structs {
             fn to_py(&self, py: &Python) -> Py<PyAny> {
                 Py::new(*py, self.clone()).unwrap().as_any().clone()
             }
+
+            fn call_constructor(
+                &mut self,
+                args: Bound<PyTuple>,
+            ) -> PyResult<PyObject> {
+                self.__call__(args)
+            }
         }
 
         #[pymethods]
@@ -206,7 +213,7 @@ impl Ctrs {
                 4 => Ctr5::type_object_bound(py),
                 _ => {
                     return new_err(
-                        "Type can only have up to 2 constructors".to_string(),
+                        "Type can only have up to 5 constructors".to_string(),
                     )
                 }
             };
@@ -326,24 +333,26 @@ impl Definition {
                     .unwrap()
                     .adts
                     .__getattr__(
-                        PyString::new_bound(py, "List").as_any().clone(),
+                        PyString::new_bound(py, "MyTree").as_any().clone(),
                     )
                     .unwrap()
                     .extract::<Ctrs>(py)
                     .unwrap(),
             );
 
-            if let Some(adt) = adt {
-                match adt {
-                    super::user_adt::TermParse::I32(val) => {
-                        println!("val {}", val)
-                    }
-                    super::user_adt::TermParse::Any(any) => {
-                        let list = any.extract::<Ctr2>(py);
-                        return Ok(list.unwrap().into_py(py));
-                    }
-                }
-            };
+            dbg!(adt);
+
+            //if let Some(adt) = adt {
+            //    match adt {
+            //        super::user_adt::TermParse::I32(val) => {
+            //            println!("val {}", val)
+            //        }
+            //        super::user_adt::TermParse::Any(any) => {
+            //            let list = any.extract::<Ctr2>(py);
+            //            return Ok(list.unwrap().into_py(py));
+            //        }
+            //    }
+            //};
 
             let ret_term = Term {
                 term: res.unwrap().0,

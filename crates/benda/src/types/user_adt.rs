@@ -1,10 +1,10 @@
-use bend::fun::{Adt as BAdt, Book, Name, Num, Term as BTerm};
+use bend::fun::{Adt as BAdt, Adts, Book, Name, Num, Term as BTerm};
 use bend::imp::{self};
 use num_traits::ToPrimitive;
 use pyo3::types::{PyAnyMethods, PyString, PyTuple};
-use pyo3::{Bound, IntoPy, Py, PyAny, PyErr, PyObject, Python};
+use pyo3::{Bound, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python};
 
-use super::book::{Adts, Ctrs};
+use super::book::Ctrs;
 use super::{extract_type_raw, BendType};
 
 fn num_to_i32(num: &Num) -> i32 {
@@ -18,14 +18,17 @@ fn num_to_i32(num: &Num) -> i32 {
 #[derive(Debug)]
 pub enum TermParse {
     I32(i32),
+    Ctr(Box<dyn BendCtr>),
     Any(Py<PyAny>),
 }
 
 pub(crate) trait BendCtr: std::fmt::Debug {
     fn to_py(&self, py: &Python) -> Py<PyAny>;
+    fn call_constructor(&mut self, args: Bound<PyTuple>) -> PyResult<PyObject>;
 }
 
 pub fn from_term_into_adt(term: &BTerm, def_adts: &Ctrs) -> Option<TermParse> {
+    dbg!(term.clone());
     match term {
         BTerm::Lam { tag, pat, bod } => {
             if let BTerm::App { tag, fun, arg } = bod.as_ref() {
@@ -40,10 +43,14 @@ pub fn from_term_into_adt(term: &BTerm, def_adts: &Ctrs) -> Option<TermParse> {
                         if let BTerm::Num { val } = arg.as_ref() {
                             n = num_to_i32(val);
 
+                            let mut all_adts: Vec<Box<dyn BendCtr>> = vec![];
+
                             match n {
                                 1 => {
                                     let mut adt =
                                         def_adts.second.clone().unwrap();
+
+                                    all_adts.push(Box::new(adt.clone()));
 
                                     let mut py_obj: Option<TermParse> = None;
 
@@ -57,6 +64,7 @@ pub fn from_term_into_adt(term: &BTerm, def_adts: &Ctrs) -> Option<TermParse> {
                                                 TermParse::Any(py_any) => {
                                                     elements.push(py_any)
                                                 }
+                                                TermParse::Ctr(_) => todo!(),
                                             }
                                         }
 
@@ -67,6 +75,7 @@ pub fn from_term_into_adt(term: &BTerm, def_adts: &Ctrs) -> Option<TermParse> {
                                                 TermParse::Any(py_any) => {
                                                     elements.push(py_any)
                                                 }
+                                                TermParse::Ctr(_) => todo!(),
                                             }
                                         }
 
@@ -95,6 +104,34 @@ pub fn from_term_into_adt(term: &BTerm, def_adts: &Ctrs) -> Option<TermParse> {
                     }
                 }
             }
+            None
+        }
+        BTerm::App { tag, fun, arg } => {
+            if let (BTerm::Var { nam }, BTerm::Num { val }) =
+                (fun.as_ref(), arg.as_ref())
+            {
+                println!("Constructor {}", num_to_i32(val));
+
+                return match num_to_i32(val) {
+                    0 => Some(TermParse::Ctr(Box::new(
+                        def_adts.first.clone().unwrap(),
+                    ))),
+                    1 => Some(TermParse::Ctr(Box::new(
+                        def_adts.second.clone().unwrap(),
+                    ))),
+                    2 => Some(TermParse::Ctr(Box::new(
+                        def_adts.third.clone().unwrap(),
+                    ))),
+                    3 => Some(TermParse::Ctr(Box::new(
+                        def_adts.fourth.clone().unwrap(),
+                    ))),
+                    4 => Some(TermParse::Ctr(Box::new(
+                        def_adts.fifth.clone().unwrap(),
+                    ))),
+                    _ => panic!("ADT has more than 5 Ctrs"),
+                };
+            }
+
             None
         }
         BTerm::Num { val } => Some(TermParse::I32(num_to_i32(val))),
