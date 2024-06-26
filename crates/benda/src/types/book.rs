@@ -101,6 +101,10 @@ macro_rules! generate_structs {
             ) -> PyResult<PyObject> {
                 self.__call__(args)
             }
+
+            fn arity(&self) -> usize {
+                self.fields.len()
+            }
         }
 
         #[pymethods]
@@ -188,6 +192,27 @@ pub struct Ctrs {
     pub third: Option<Ctr3>,
     pub fourth: Option<Ctr4>,
     pub fifth: Option<Ctr5>,
+}
+
+impl Ctrs {
+    pub(crate) fn get_base_case(&self) -> Option<Box<dyn BendCtr>> {
+        if self.first.as_ref().unwrap().arity() == 0 {
+            return Some(Box::new(self.first.clone().unwrap()));
+        }
+        if self.second.as_ref().unwrap().arity() == 0 {
+            return Some(Box::new(self.second.clone().unwrap()));
+        }
+        if self.third.as_ref().unwrap().arity() == 0 {
+            return Some(Box::new(self.third.clone().unwrap()));
+        }
+        if self.fourth.as_ref().unwrap().arity() == 0 {
+            return Some(Box::new(self.fourth.clone().unwrap()));
+        }
+        if self.fifth.as_ref().unwrap().arity() == 0 {
+            return Some(Box::new(self.fifth.clone().unwrap()));
+        }
+        None
+    }
 }
 
 trait InsertField {
@@ -340,19 +365,18 @@ impl Definition {
                     .unwrap(),
             );
 
-            dbg!(adt);
-
-            //if let Some(adt) = adt {
-            //    match adt {
-            //        super::user_adt::TermParse::I32(val) => {
-            //            println!("val {}", val)
-            //        }
-            //        super::user_adt::TermParse::Any(any) => {
-            //            let list = any.extract::<Ctr2>(py);
-            //            return Ok(list.unwrap().into_py(py));
-            //        }
-            //    }
-            //};
+            if let Some(adt) = adt {
+                match adt {
+                    super::user_adt::TermParse::I32(val) => {
+                        println!("val {}", val)
+                    }
+                    super::user_adt::TermParse::Any(any) => {
+                        let list = any.extract::<Ctr2>(py);
+                        return Ok(list.unwrap().into_py(py));
+                    }
+                    _ => {}
+                }
+            };
 
             let ret_term = Term {
                 term: res.unwrap().0,

@@ -1,5 +1,8 @@
+use std::vec;
+
 use bend::fun::{Adt as BAdt, Adts, Book, Name, Num, Term as BTerm};
 use bend::imp::{self};
+use indexmap::IndexMap;
 use num_traits::ToPrimitive;
 use pyo3::types::{PyAnyMethods, PyString, PyTuple};
 use pyo3::{Bound, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python};
@@ -20,119 +23,137 @@ pub enum TermParse {
     I32(i32),
     Ctr(Box<dyn BendCtr>),
     Any(Py<PyAny>),
+    Vec(Box<dyn BendCtr>, Vec<Py<PyAny>>),
+    Args(Vec<Py<PyAny>>),
 }
 
 pub(crate) trait BendCtr: std::fmt::Debug {
     fn to_py(&self, py: &Python) -> Py<PyAny>;
     fn call_constructor(&mut self, args: Bound<PyTuple>) -> PyResult<PyObject>;
+    fn arity(&self) -> usize;
 }
 
 pub fn from_term_into_adt(term: &BTerm, def_adts: &Ctrs) -> Option<TermParse> {
-    dbg!(term.clone());
     match term {
         BTerm::Lam { tag, pat, bod } => {
-            if let BTerm::App { tag, fun, arg } = bod.as_ref() {
-                let arg_adt = from_term_into_adt(arg.as_ref(), def_adts);
+            let mut args: Vec<Py<PyAny>> = vec![];
 
-                if let BTerm::App { tag, fun, arg } = fun.as_ref() {
-                    let mut n: i32 = 0;
+            let lam_body = from_term_into_adt(bod.as_ref(), def_adts);
 
-                    let inside_arg = from_term_into_adt(arg.as_ref(), def_adts);
-
-                    if let BTerm::App { tag, fun, arg } = fun.as_ref() {
-                        if let BTerm::Num { val } = arg.as_ref() {
-                            n = num_to_i32(val);
-
-                            let mut all_adts: Vec<Box<dyn BendCtr>> = vec![];
-
-                            match n {
-                                1 => {
-                                    let mut adt =
-                                        def_adts.second.clone().unwrap();
-
-                                    all_adts.push(Box::new(adt.clone()));
-
-                                    let mut py_obj: Option<TermParse> = None;
-
-                                    let mut elements: Vec<Py<PyAny>> = vec![];
-
-                                    Python::with_gil(|py| {
-                                        if let Some(inside_arg) = inside_arg {
-                                            match inside_arg {
-                                                TermParse::I32(val) => elements
-                                                    .push(val.into_py(py)),
-                                                TermParse::Any(py_any) => {
-                                                    elements.push(py_any)
-                                                }
-                                                TermParse::Ctr(_) => todo!(),
-                                            }
-                                        }
-
-                                        if let Some(inside_arg) = arg_adt {
-                                            match inside_arg {
-                                                TermParse::I32(val) => elements
-                                                    .push(val.into_py(py)),
-                                                TermParse::Any(py_any) => {
-                                                    elements.push(py_any)
-                                                }
-                                                TermParse::Ctr(_) => todo!(),
-                                            }
-                                        }
-
-                                        if elements.len() == 1 {
-                                            let adt =
-                                                def_adts.first.clone().unwrap();
-                                            elements.push(adt.to_py(&py));
-                                        }
-
-                                        let args =
-                                            PyTuple::new_bound(py, elements);
-
-                                        py_obj = Some(TermParse::Any(
-                                            adt.__call__(args).unwrap(),
-                                        ));
-                                    });
-
-                                    return py_obj;
-                                }
-                                _ => {
-                                    dbg!("should treat the last numarg");
-                                    return None;
-                                }
-                            }
+            if let Some(bod) = lam_body {
+                match bod {
+                    TermParse::I32(val) => return Some(TermParse::I32(val)),
+                    TermParse::Ctr(mut ct) => {
+                        if ct.arity() == 0 {
+                            return Python::with_gil(|py| {
+                                return Some(TermParse::Any(
+                                    ct.call_constructor(PyTuple::empty_bound(
+                                        py,
+                                    ))
+                                    .unwrap(),
+                                ));
+                            });
                         }
                     }
-                }
+                    TermParse::Any(a) => {
+                        args.push(a);
+                    }
+                    TermParse::Vec(mut ct, mut args) => {
+                        return Python::with_gil(|py| {
+                            if let Some(case) = def_adts.get_base_case() {
+                                args.push(case.to_py(&py));
+                            }
+
+                            return Some(TermParse::Any(
+                                ct.call_constructor(PyTuple::new_bound(
+                                    py, args,
+                                ))
+                                .unwrap(),
+                            ));
+                        });
+                    }
+                    TermParse::Args(args) => {
+                        todo!()
+                    }
+                };
             }
-            None
+            todo!()
         }
         BTerm::App { tag, fun, arg } => {
+            let mut constructor: Option<Box<dyn BendCtr>> = None;
+
             if let (BTerm::Var { nam }, BTerm::Num { val }) =
                 (fun.as_ref(), arg.as_ref())
             {
-                println!("Constructor {}", num_to_i32(val));
+                match num_to_i32(val) {
+                    0 => {
+                        constructor =
+                            Some(Box::new(def_adts.first.clone().unwrap()));
+                    }
+                    1 => {
+                        constructor =
+                            Some(Box::new(def_adts.second.clone().unwrap()));
+                    }
+                    2 => {
+                        constructor =
+                            Some(Box::new(def_adts.third.clone().unwrap()));
+                    }
+                    3 => {
+                        constructor =
+                            Some(Box::new(def_adts.fourth.clone().unwrap()));
+                    }
+                    4 => {
+                        constructor =
+                            Some(Box::new(def_adts.fifth.clone().unwrap()));
+                    }
 
-                return match num_to_i32(val) {
-                    0 => Some(TermParse::Ctr(Box::new(
-                        def_adts.first.clone().unwrap(),
-                    ))),
-                    1 => Some(TermParse::Ctr(Box::new(
-                        def_adts.second.clone().unwrap(),
-                    ))),
-                    2 => Some(TermParse::Ctr(Box::new(
-                        def_adts.third.clone().unwrap(),
-                    ))),
-                    3 => Some(TermParse::Ctr(Box::new(
-                        def_adts.fourth.clone().unwrap(),
-                    ))),
-                    4 => Some(TermParse::Ctr(Box::new(
-                        def_adts.fifth.clone().unwrap(),
-                    ))),
                     _ => panic!("ADT has more than 5 Ctrs"),
                 };
+
+                return Some(TermParse::Ctr(constructor.unwrap()));
             }
 
-            None
+            let app_arg = from_term_into_adt(arg, def_adts);
+            let app_fun = from_term_into_adt(fun, def_adts);
+
+            let mut args: Vec<Py<PyAny>> = vec![];
+
+            let mut ct: Option<Box<dyn BendCtr>> = None;
+
+            if let Some(app_arg) = app_arg {
+                match app_arg {
+                    TermParse::I32(val) => {
+                        Python::with_gil(|py| args.push(val.into_py(py)));
+                    }
+                    TermParse::Ctr(_) => todo!(),
+                    TermParse::Any(a) => args.push(a),
+                    TermParse::Vec(_, _) => todo!(),
+                    TermParse::Args(mut inner_args) => {
+                        args.append(&mut inner_args);
+                    }
+                }
+            }
+
+            if let Some(a_fun) = app_fun {
+                match a_fun {
+                    TermParse::I32(_) => {}
+                    TermParse::Ctr(c) => {
+                        ct = Some(c);
+                        return Some(TermParse::Vec(ct.unwrap(), args));
+                    }
+                    TermParse::Any(a) => {
+                        args.push(a);
+                    }
+                    TermParse::Vec(ct, mut ct_args) => {
+                        ct_args.append(&mut args);
+                        return Some(TermParse::Vec(ct, ct_args));
+                    }
+                    TermParse::Args(mut inner_args) => {
+                        args.append(&mut inner_args);
+                    }
+                }
+            }
+            Some(TermParse::Args(args))
         }
         BTerm::Num { val } => Some(TermParse::I32(num_to_i32(val))),
         _ => None,
