@@ -11,15 +11,17 @@ use pyo3::prelude::*;
 use pyo3::types::{PyString, PyTuple};
 use pyo3::PyTypeInfo;
 
-use super::user_adt::UserAdt;
+use super::user_adt::{from_term_into_adt, UserAdt};
 use super::{extract_type_raw, BendType};
 use crate::benda_ffi;
+use crate::types::user_adt::BendCtr;
 
 fn new_err<T>(str: String) -> PyResult<T> {
     Err(PyException::new_err(str))
 }
 
 thread_local!(static GLOBAL_BOOK: RefCell<Option<BendBook>> = const { RefCell::new(None) });
+thread_local!(static GLOBAL_BENDA_BOOK: RefCell<Option<Book>> = const { RefCell::new(None) });
 
 #[pyclass(name = "Term")]
 #[derive(Clone, Debug)]
@@ -57,10 +59,12 @@ fn get_list(lam: &fun::Term, vals: &mut Vec<i32>, print: &mut bool) {
 #[pymethods]
 impl Term {
     fn __str__(&self) -> String {
-        self.term.to_string()
+        self.term.display_pretty(0).to_string()
     }
 
     fn to_list(&self) -> PyResult<PyObject> {
+        //dbg!(self.term.clone());
+
         Python::with_gil(|py| {
             let mut vals: Vec<i32> = vec![];
             get_list(&self.term, &mut vals, &mut false);
@@ -86,6 +90,12 @@ macro_rules! generate_structs {
             }
         }
 
+        impl BendCtr for $iden {
+            fn to_py(&self, py: &Python) -> Py<PyAny> {
+                Py::new(*py, self.clone()).unwrap().as_any().clone()
+            }
+        }
+
         #[pymethods]
         impl $iden {
             #[classattr]
@@ -101,7 +111,7 @@ macro_rules! generate_structs {
             }
 
             #[pyo3(signature = (*args))]
-            fn __call__(
+            pub fn __call__(
                 &mut self,
                 args: Bound<'_, PyTuple>,
             ) -> PyResult<PyObject> {
@@ -166,11 +176,11 @@ generate_structs!("Ctr5", Ctr5);
 #[derive(Clone, Debug, Default)]
 pub struct Ctrs {
     fields: IndexMap<String, Py<PyAny>>,
-    first: Option<Ctr1>,
-    second: Option<Ctr2>,
-    third: Option<Ctr3>,
-    fourth: Option<Ctr4>,
-    fifth: Option<Ctr5>,
+    pub first: Option<Ctr1>,
+    pub second: Option<Ctr2>,
+    pub third: Option<Ctr3>,
+    pub fourth: Option<Ctr4>,
+    pub fifth: Option<Ctr5>,
 }
 
 trait InsertField {
@@ -309,6 +319,32 @@ impl Definition {
 
             GLOBAL_BOOK.set(bend_book);
 
+            let adt = from_term_into_adt(
+                &res.clone().unwrap().0,
+                &GLOBAL_BENDA_BOOK
+                    .take()
+                    .unwrap()
+                    .adts
+                    .__getattr__(
+                        PyString::new_bound(py, "List").as_any().clone(),
+                    )
+                    .unwrap()
+                    .extract::<Ctrs>(py)
+                    .unwrap(),
+            );
+
+            if let Some(adt) = adt {
+                match adt {
+                    super::user_adt::TermParse::I32(val) => {
+                        println!("val {}", val)
+                    }
+                    super::user_adt::TermParse::Any(any) => {
+                        let list = any.extract::<Ctr2>(py);
+                        return Ok(list.unwrap().into_py(py));
+                    }
+                }
+            };
+
             let ret_term = Term {
                 term: res.unwrap().0,
             };
@@ -371,6 +407,7 @@ impl Adts {
 }
 
 #[pyclass(name = "Book")]
+#[derive(Clone, Debug)]
 pub struct Book {
     adts: Adts,
     defs: Definitions,
@@ -495,10 +532,13 @@ impl Book {
 
         GLOBAL_BOOK.set(Some(bend_book.clone()));
 
-        Self {
+        let benda_book = Self {
             adts,
             defs: definitions,
-        }
+        };
+        GLOBAL_BENDA_BOOK.set(Some(benda_book.clone()));
+
+        benda_book
     }
 }
 
