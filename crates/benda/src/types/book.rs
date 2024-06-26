@@ -72,6 +72,36 @@ impl Term {
             Ok(vals.into_py(py))
         })
     }
+
+    fn to_adt(&self, t_type: Bound<PyAny>) -> PyResult<Py<PyAny>> {
+        let py = t_type.py();
+
+        let adt = from_term_into_adt(
+            &self.term.clone(),
+            &GLOBAL_BENDA_BOOK
+                .take()
+                .unwrap()
+                .adts
+                .__getattr__(t_type)
+                .unwrap()
+                .extract::<Ctrs>(py)
+                .unwrap(),
+        );
+
+        if let Some(adt) = adt {
+            match adt {
+                super::user_adt::TermParse::I32(val) => {
+                    println!("val {}", val)
+                }
+                super::user_adt::TermParse::Any(any) => {
+                    let list = any.extract::<Ctr2>(py);
+                    return Ok(list.unwrap().into_py(py));
+                }
+                _ => {}
+            }
+        };
+        new_err("Could not parse Term into the given ADT".to_string())
+    }
 }
 
 macro_rules! generate_structs {
@@ -350,33 +380,6 @@ impl Definition {
             let res = benda_ffi::run(&b.clone());
 
             GLOBAL_BOOK.set(bend_book);
-
-            let adt = from_term_into_adt(
-                &res.clone().unwrap().0,
-                &GLOBAL_BENDA_BOOK
-                    .take()
-                    .unwrap()
-                    .adts
-                    .__getattr__(
-                        PyString::new_bound(py, "MyTree").as_any().clone(),
-                    )
-                    .unwrap()
-                    .extract::<Ctrs>(py)
-                    .unwrap(),
-            );
-
-            if let Some(adt) = adt {
-                match adt {
-                    super::user_adt::TermParse::I32(val) => {
-                        println!("val {}", val)
-                    }
-                    super::user_adt::TermParse::Any(any) => {
-                        let list = any.extract::<Ctr2>(py);
-                        return Ok(list.unwrap().into_py(py));
-                    }
-                    _ => {}
-                }
-            };
 
             let ret_term = Term {
                 term: res.unwrap().0,
