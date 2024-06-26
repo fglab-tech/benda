@@ -2,7 +2,7 @@ use core::panic;
 use std::cell::RefCell;
 use std::vec;
 
-use bend::fun::{self, Book as BendBook, CtrField, Name, Rule};
+use bend::fun::{self, Book as BendBook, Name, Rule};
 use bend::imp::{self, Expr, Stmt};
 use indexmap::IndexMap;
 use num_traits::ToPrimitive;
@@ -112,12 +112,6 @@ macro_rules! generate_structs {
             entire_name: String,
             name: String,
             fields: IndexMap<String, Option<Py<PyAny>>>,
-        }
-
-        impl InsertField for $iden {
-            fn insert_field(&mut self, field: &CtrField) {
-                self.fields.insert(field.nam.to_string(), None);
-            }
         }
 
         impl BendCtr for $iden {
@@ -243,10 +237,6 @@ impl Ctrs {
         }
         None
     }
-}
-
-trait InsertField {
-    fn insert_field(&mut self, field: &CtrField);
 }
 
 #[pymethods]

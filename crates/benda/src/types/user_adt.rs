@@ -1,8 +1,7 @@
 use std::vec;
 
-use bend::fun::{Adt as BAdt, Adts, Book, Name, Num, Term as BTerm};
+use bend::fun::{Adt as BAdt, Book, Name, Num, Term as BTerm};
 use bend::imp::{self};
-use indexmap::IndexMap;
 use num_traits::ToPrimitive;
 use pyo3::types::{PyAnyMethods, PyString, PyTuple};
 use pyo3::{Bound, IntoPy, Py, PyAny, PyErr, PyObject, PyResult, Python};
@@ -35,7 +34,11 @@ pub(crate) trait BendCtr: std::fmt::Debug {
 
 pub fn from_term_into_adt(term: &BTerm, def_adts: &Ctrs) -> Option<TermParse> {
     match term {
-        BTerm::Lam { tag, pat, bod } => {
+        BTerm::Lam {
+            tag: _,
+            pat: _,
+            bod,
+        } => {
             let mut args: Vec<Py<PyAny>> = vec![];
 
             let lam_body = from_term_into_adt(bod.as_ref(), def_adts);
@@ -72,19 +75,18 @@ pub fn from_term_into_adt(term: &BTerm, def_adts: &Ctrs) -> Option<TermParse> {
                             ));
                         });
                     }
-                    TermParse::Args(args) => {
+                    TermParse::Args(_) => {
                         todo!()
                     }
                 };
             }
             todo!()
         }
-        BTerm::App { tag, fun, arg } => {
-            let mut constructor: Option<Box<dyn BendCtr>> = None;
-
-            if let (BTerm::Var { nam }, BTerm::Num { val }) =
+        BTerm::App { tag: _, fun, arg } => {
+            if let (BTerm::Var { nam: _ }, BTerm::Num { val }) =
                 (fun.as_ref(), arg.as_ref())
             {
+                let mut constructor: Option<Box<dyn BendCtr>> = None;
                 match num_to_i32(val) {
                     0 => {
                         constructor =
