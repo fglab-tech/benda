@@ -70,8 +70,7 @@ def main():
     cons_list = to_cons_list(data)
 
     sorted_res = book.defs.Sort(cons_list)
-    #sorted_arr = from_cons_list(sorted_res)
-    sorted_arr = sorted_res.to_list()
+    sorted_arr = sorted_res.to_adt(book.adts.List)
     print("Result:  ", sorted_arr)
     print("Sum: ", book.defs.Sum(sorted_res))
 

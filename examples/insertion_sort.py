@@ -23,7 +23,7 @@ def main():
     data = rnd(10)
 
     result = book.defs.insertion_sort(data)
-    print("Result:  ", result.to_list())
+    print("Result:  ", result.to_adt(book.adts.List))
 
 
 if __name__ == "__main__":
