@@ -6,6 +6,9 @@
 [HVM]: https://github.com/HigherOrderCo/hvm
 [Bend]: https://github.com/HigherOrderCo/bend
 
+Read the Docs:<br>
+[FFI](https://github.com/vkobinski/benda-main/tree/master/docs/FFI.md)
+
 This is in conceptual stage.
 
 ## Example
