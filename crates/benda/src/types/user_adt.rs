@@ -120,8 +120,6 @@ pub fn from_term_into_adt(term: &BTerm, def_adts: &Ctrs) -> Option<TermParse> {
 
             let mut args: Vec<Py<PyAny>> = vec![];
 
-            let mut ct: Option<Box<dyn BendCtr>> = None;
-
             if let Some(app_arg) = app_arg {
                 match app_arg {
                     TermParse::I32(val) => {
@@ -140,8 +138,7 @@ pub fn from_term_into_adt(term: &BTerm, def_adts: &Ctrs) -> Option<TermParse> {
                 match a_fun {
                     TermParse::I32(_) => {}
                     TermParse::Ctr(c) => {
-                        ct = Some(c);
-                        return Some(TermParse::Vec(ct.unwrap(), args));
+                        return Some(TermParse::Vec(c, args));
                     }
                     TermParse::Any(a) => {
                         args.push(a);

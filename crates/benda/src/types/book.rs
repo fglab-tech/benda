@@ -23,37 +23,11 @@ fn new_err<T>(str: String) -> PyResult<T> {
 thread_local!(static GLOBAL_BOOK: RefCell<Option<BendBook>> = const { RefCell::new(None) });
 thread_local!(static GLOBAL_BENDA_BOOK: RefCell<Option<Book>> = const { RefCell::new(None) });
 
+/// Term is the HVM output in lambda encoding. Use `to_adt` method to turn it into a ADT.
 #[pyclass(name = "Term")]
 #[derive(Clone, Debug)]
 pub struct Term {
     term: fun::Term,
-}
-
-fn get_list(lam: &fun::Term, vals: &mut Vec<i32>, print: &mut bool) {
-    match lam {
-        fun::Term::Lam {
-            tag: _,
-            pat: _,
-            bod,
-        } => {
-            get_list(bod, vals, print);
-        }
-        fun::Term::App { tag: _, fun, arg } => {
-            get_list(fun, vals, print);
-            if let fun::Term::Num { val } = **arg {
-                if *print {
-                    match val {
-                        fun::Num::U24(v) => vals.push(v.to_i32().unwrap()),
-                        fun::Num::I24(v) => vals.push(v.to_i32().unwrap()),
-                        fun::Num::F24(v) => vals.push(v.to_i32().unwrap()),
-                    }
-                }
-                *print = !(*print);
-            }
-            get_list(arg, vals, print);
-        }
-        _ => {}
-    }
 }
 
 #[pymethods]
@@ -62,45 +36,33 @@ impl Term {
         self.term.display_pretty(0).to_string()
     }
 
-    fn to_list(&self) -> PyResult<PyObject> {
-        //dbg!(self.term.clone());
-
-        Python::with_gil(|py| {
-            let mut vals: Vec<i32> = vec![];
-            get_list(&self.term, &mut vals, &mut false);
-
-            Ok(vals.into_py(py))
-        })
-    }
-
     fn to_adt(&self, t_type: Bound<PyAny>) -> PyResult<Py<PyAny>> {
         let py = t_type.py();
 
-        let adt = from_term_into_adt(
-            &self.term.clone(),
-            &GLOBAL_BENDA_BOOK
-                .take()
-                .unwrap()
-                .adts
-                .__getattr__(t_type)
-                .unwrap()
-                .extract::<Ctrs>(py)
-                .unwrap(),
-        );
+        let ctrs = t_type.downcast::<Ctrs>();
 
-        if let Some(adt) = adt {
-            match adt {
-                super::user_adt::TermParse::I32(val) => {
-                    println!("val {}", val)
-                }
-                super::user_adt::TermParse::Any(any) => {
-                    let list = any.extract::<Ctr2>(py);
-                    return Ok(list.unwrap().into_py(py));
-                }
-                _ => {}
+        match ctrs {
+            Ok(ctrs) => {
+                let adt = from_term_into_adt(
+                    &self.term.clone(),
+                    &ctrs.extract::<Ctrs>().unwrap(),
+                );
+                if let Some(adt) = adt {
+                    match adt {
+                        super::user_adt::TermParse::I32(val) => {
+                            println!("val {}", val)
+                        }
+                        super::user_adt::TermParse::Any(any) => {
+                            let list = any.extract::<Ctr2>(py);
+                            return Ok(list.unwrap().into_py(py));
+                        }
+                        _ => {}
+                    }
+                };
+                new_err("Could not parse Term into the given ADT".to_string())
             }
-        };
-        new_err("Could not parse Term into the given ADT".to_string())
+            Err(_) => new_err("Invalid Type given as argument".to_string()),
+        }
     }
 }
 
