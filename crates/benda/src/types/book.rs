@@ -5,12 +5,12 @@ use std::vec;
 use bend::fun::{self, Book as BendBook, Name, Rule};
 use bend::imp::{self, Expr, Stmt};
 use indexmap::IndexMap;
-use num_traits::ToPrimitive;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::{PyString, PyTuple};
 use pyo3::PyTypeInfo;
 
+use super::fan::Fan;
 use super::user_adt::{from_term_into_adt, UserAdt};
 use super::{extract_type_raw, BendType};
 use crate::benda_ffi;
@@ -273,6 +273,10 @@ impl Definition {
 
                 if let Ok(term) = arg.downcast::<Term>() {
                     if let Ok(new_term) = term.extract::<Term>() {
+                        u_type = Some(new_term.term);
+                    }
+                } else if let Ok(term) = arg.downcast::<Fan>() {
+                    if let Ok(new_term) = term.extract::<Fan>() {
                         u_type = Some(new_term.term);
                     }
                 } else {

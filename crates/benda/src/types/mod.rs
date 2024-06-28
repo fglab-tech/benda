@@ -12,6 +12,7 @@ use user_adt::UserAdt;
 
 pub mod book;
 pub mod f24;
+pub mod fan;
 pub mod i24;
 pub mod tree;
 pub mod u24;

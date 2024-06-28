@@ -98,3 +98,23 @@ sorted_list = book.defs.Sort(my_list).to_adt(book.adts.List)
 ```
 
 This way you can convert the `Term` object into a ADT to use complex data structures in Python.<br>
+
+## Superpositions
+
+Use [superpositions](https://gist.github.com/VictorTaelin/9061306220929f04e7e6980f23ade615) to boost your code performance. Superpositions are a way to call a Bend function multiple times using a `Tuple` of values.<br>
+Example:
+```python
+import benda
+book = benda.load_book_from_file("./examples/sat_solver.bend")
+
+pred = book.defs.pred
+
+x1 = benda.Fan(0,1)
+x2 = benda.Fan(0,1)
+
+result =  pred(x1,x2)
+print("Result:  ", result)
+
+```
+
+Here, Fan represents a superposition of values. This code applies the `pred` function to all the possible values of x1 and x2. The result is a superposition of the results of the function applied to all the possible values of x1 and x2.<br>

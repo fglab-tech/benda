@@ -6,6 +6,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyFunction, PyString, PyTuple};
 use rustpython_parser::{parse, Mode};
 use types::book::Book;
+use types::fan::Fan;
 use types::tree::{Leaf, Node, Tree};
 use types::u24::U24;
 mod benda_ffi;
@@ -142,5 +143,6 @@ fn benda(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Tree>()?;
     m.add_class::<Node>()?;
     m.add_class::<Leaf>()?;
+    m.add_class::<Fan>()?;
     Ok(())
 }
