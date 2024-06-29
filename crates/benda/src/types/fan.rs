@@ -1,6 +1,6 @@
 use bend::fun::Term;
-use pyo3::types::{PyString, PyTuple, PyTupleMethods};
-use pyo3::{pyclass, pymethods, Bound, Py, PyAny};
+use pyo3::types::{PyTuple, PyTupleMethods};
+use pyo3::{pyclass, pymethods, Bound};
 
 use crate::types::extract_type_raw;
 

@@ -86,31 +86,15 @@ pub fn from_term_into_adt(term: &BTerm, def_adts: &Ctrs) -> Option<TermParse> {
             if let (BTerm::Var { nam: _ }, BTerm::Num { val }) =
                 (fun.as_ref(), arg.as_ref())
             {
-                let mut constructor: Option<Box<dyn BendCtr>> = None;
-                match num_to_i32(val) {
-                    0 => {
-                        constructor =
-                            Some(Box::new(def_adts.first.clone().unwrap()));
-                    }
-                    1 => {
-                        constructor =
-                            Some(Box::new(def_adts.second.clone().unwrap()));
-                    }
-                    2 => {
-                        constructor =
-                            Some(Box::new(def_adts.third.clone().unwrap()));
-                    }
-                    3 => {
-                        constructor =
-                            Some(Box::new(def_adts.fourth.clone().unwrap()));
-                    }
-                    4 => {
-                        constructor =
-                            Some(Box::new(def_adts.fifth.clone().unwrap()));
-                    }
-
-                    _ => panic!("ADT has more than 5 Ctrs"),
-                };
+                let constructor: Option<Box<dyn BendCtr>> =
+                    match num_to_i32(val) {
+                        0 => Some(Box::new(def_adts.first.clone().unwrap())),
+                        1 => Some(Box::new(def_adts.second.clone().unwrap())),
+                        2 => Some(Box::new(def_adts.third.clone().unwrap())),
+                        3 => Some(Box::new(def_adts.fourth.clone().unwrap())),
+                        4 => Some(Box::new(def_adts.fifth.clone().unwrap())),
+                        _ => panic!("ADT has more than 5 Ctrs"),
+                    };
 
                 return Some(TermParse::Ctr(constructor.unwrap()));
             }

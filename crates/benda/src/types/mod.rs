@@ -139,6 +139,7 @@ pub fn extract_type_expr(call: ExprCall) -> Option<imp::Expr> {
 pub enum BuiltinType {
     U24,
     F32,
+    #[allow(dead_code)]
     I32,
     Tree,
     Leaf,
