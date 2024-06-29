@@ -9,7 +9,7 @@ pub fn run(book: &Book) -> Option<(Term, String, Diagnostics)> {
     let args = None;
 
     bend::run_book(
-        book.clone(),
+        book.to_owned(),
         run_opts,
         compile_opts,
         diagnostics_cfg,

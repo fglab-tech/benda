@@ -18,12 +18,25 @@ def random(n):
   else:
     return (random(n - 1) * 16 + 101387) % 429453
 
+def print_list(list):
+    print("[", end="")
+    while True:
+        match list:
+            case book.adts.List.tCons(value, tail):
+                print(value, end=", ")
+                list = tail
+            case book.adts.List.tNil():
+                break
+    print("]")
+
 
 def main():
     data = rnd(10)
 
     result = book.defs.insertion_sort(data)
-    print("Result:  ", result.to_adt(book.adts.List))
+    sorted = result.to_adt(book.adts.List)
+    print("Result:  ", end="")
+    print_list(sorted)
 
 
 if __name__ == "__main__":

@@ -60,8 +60,20 @@ def from_cons_list(xs) -> list[u24]:
                 result.append(value)
                 xs = tail
 
+def print_list(list):
+    print("[", end="")
+    while True:
+        match list:
+            case book.adts.List.tCons(value, tail):
+                print(value, end=", ")
+                list = tail
+            case book.adts.List.tNil():
+                break
+    print("]")
+
+
 def main():
-    data = gen_list(10, 1000)
+    data = gen_list(5, 1000)
     print("Data:    ", data)
 
     expected = sorted(data)
@@ -71,8 +83,13 @@ def main():
 
     sorted_res = book.defs.Sort(cons_list)
     sorted_arr = sorted_res.to_adt(book.adts.List)
-    print("Result:  ", sorted_arr)
-    print("Sum: ", book.defs.Sum(sorted_res))
+
+    sum = book.defs.Sum(sorted_res)
+
+
+    print("Result:   ", end="")
+    print_list(sorted_arr)
+    print("Sum: ", sum)
 
     #mocked_sorted = mock_sort(cons_list)
     #mocked_sorted_arr = mocked_from_cons_list(mocked_sorted)
