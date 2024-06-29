@@ -206,9 +206,9 @@ impl Ctrs {
     fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<pyo3::PyObject> {
         let py = object.py();
 
-        if object.to_string().starts_with("t") {
+        if object.to_string().starts_with('t') {
             let b_name = object.to_string();
-            let name = b_name.strip_prefix("t").unwrap();
+            let name = b_name.strip_prefix('t').unwrap();
 
             let index = self.fields.get_index_of(name).unwrap();
 
