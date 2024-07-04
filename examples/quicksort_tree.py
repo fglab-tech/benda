@@ -38,15 +38,16 @@ def print_tree(tree):
 
 if __name__ == "__main__":
 
-    pylist = gen_list(50,1000)
+    pylist = gen_list(50,5000)
+
+    tree = to_cons_list(pylist)
+    sort_tree = book.defs.Sort(tree)
+
     pylist.sort()
 
     print("Python Sort: ")
     print(pylist)
 
-    tree = to_cons_list(pylist)
-    sort_tree = book.defs.Sort(tree)
-
-
     print("Bend Tree Quicksort: ")
     print_tree(sort_tree.to_adt(book.adts.MyTree))
+    print()
