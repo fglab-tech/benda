@@ -75,8 +75,8 @@ pub fn from_term_into_adt(term: &BTerm, def_adts: &Ctrs) -> Option<TermParse> {
                             ));
                         });
                     }
-                    TermParse::Args(_) => {
-                        todo!()
+                    TermParse::Args(a) => {
+                        return Some(TermParse::Args(a));
                     }
                 };
             }
@@ -142,6 +142,8 @@ pub fn from_term_into_adt(term: &BTerm, def_adts: &Ctrs) -> Option<TermParse> {
         _ => None,
     }
 }
+
+#[derive(Debug, Clone)]
 pub struct UserAdt<'py> {
     adt: BAdt,
     entire_nam: Name,

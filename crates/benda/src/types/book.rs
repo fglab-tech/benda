@@ -104,7 +104,12 @@ macro_rules! generate_structs {
             }
 
             fn __str__(&self) -> String {
-                format!("Bend ADT: {}", self.entire_name)
+                let mut out = String::new();
+                out.push_str(
+                    format!("Bend ADT: {}", self.entire_name).as_str(),
+                );
+
+                out
             }
 
             #[pyo3(signature = (*args))]

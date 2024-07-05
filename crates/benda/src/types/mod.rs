@@ -193,7 +193,7 @@ impl BendType for i32 {
     fn to_bend(&self) -> ToBendResult {
         Ok(imp::Expr::Num {
             //val: Num::I24(*self),
-            val: Num::U24(self.to_u32().unwrap()),
+            val: Num::I24(*self),
         })
     }
 }
