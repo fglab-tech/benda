@@ -18,6 +18,9 @@ pub mod tree;
 pub mod u24;
 pub mod user_adt;
 
+/**
+ * TODO: document
+ */
 pub trait BendType {
     fn to_bend(&self) -> ToBendResult;
 }

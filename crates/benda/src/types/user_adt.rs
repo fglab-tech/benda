@@ -93,6 +93,9 @@ pub fn from_term_into_adt(term: &BTerm, def_adts: &Ctrs) -> Option<TermParse> {
                         2 => Some(Box::new(def_adts.third.clone().unwrap())),
                         3 => Some(Box::new(def_adts.fourth.clone().unwrap())),
                         4 => Some(Box::new(def_adts.fifth.clone().unwrap())),
+                        5 => Some(Box::new(def_adts.sixth.clone().unwrap())),
+                        6 => Some(Box::new(def_adts.seventh.clone().unwrap())),
+                        7 => Some(Box::new(def_adts.eighth.clone().unwrap())),
                         _ => panic!("ADT has more than 5 Ctrs"),
                     };
 
@@ -143,6 +146,9 @@ pub fn from_term_into_adt(term: &BTerm, def_adts: &Ctrs) -> Option<TermParse> {
     }
 }
 
+/**
+ * TODO: document
+ */
 #[derive(Debug, Clone)]
 pub struct UserAdt<'py> {
     adt: BAdt,
@@ -162,7 +168,7 @@ impl<'py> UserAdt<'py> {
         //    return None;
         //}
 
-        if let Ok(binding) = data.getattr("type") {
+        if let Ok(binding) = data.getattr("__ctr_type__") {
             for (nam, _ctr) in &book.ctrs {
                 let new_nam = nam.to_string();
                 let two_names = new_nam.split_once('/').unwrap();

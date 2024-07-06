@@ -9,48 +9,84 @@
 Read the Docs:<br>
 [FFI](https://github.com/vkobinski/benda-main/tree/master/docs/FFI.md)
 
-This is in conceptual stage.
+This is in MVP stage.
 
 ## Example
 
 ```py
-from dataclasses import dataclass
-from benda import bjit, u24
+import benda
+import random
 
-@dataclass
-class Leaf:
-  value: u24  # native HVM machine integer
+book = benda.load_book("""
+(Sort List/Nil) = List/Nil
+(Sort(List/Cons head tail)) =
+((Part head tail) λmin λmax
+ let lft=(Sort min)
+ let rgt=(Sort max)
+ (Concat lft(List/Cons head rgt)))
 
-@dataclass
-class Node:
-  left: 'Tree'
-  right: 'Tree'
+# Partitions a list in two halves, less-than-p and greater-than-p
+(Part p List/Nil) = λt(t List/Nil List/Nil)
+(Part p(List/Cons head tail)) = (Push(> head p) head(Part p tail))
 
-Tree = Node | Leaf
+# Pushes a value to the first or second list of a pair
+(Push 0 x pair) = (pair λmin λmax λp(p(List/Cons x min) max))
+(Push _ x pair) = (pair λmin λmax λp(p min(List/Cons x max)))
 
-# The `bjit` decorator will introspect and translate the function to HVM/Bend
-# code, replacing it with a wrapper that converts the Python-level types of the
-# inputs and result value, Numba-style.
+(Concat List/Nil tail) = tail
+(Concat(List/Cons head tail) xs2) =
+(List/Cons head(Concat tail xs2))
+""")
 
-@bjit
-def sum_tree(tree: Tree) -> u24:
-  match tree:
-    case Leaf(value=value):
-      return value
-    case Node(left=left, right=right):
-      return sum_tree(left) + sum_tree(right)
-    case _:
-      raise TypeError("Invalid type for tree")
+List = book.adts.List
 
-# Alternatively, you can opt to use Python big integers and other primitives,
-# they will be translated to the equivalent representations automatically.
+def gen_list(n: int, max_value: int = 0xffffff) -> list[int]:
+    result: list[int] = []
+    for _ in range(n):
+        result.append(random.randint(0, max_value))
+    return result
 
-@dataclass
-class Leaf2:
-  value: int
+
+def to_cons_list(xs: list[int]):
+    result = List.Nil()
+
+    hi = len(xs)
+    if hi == 0:
+        return result
+
+    while hi > 0:
+        hi -= 1
+        result = List.Cons(xs[hi], result)
+
+    return result
+
+def print_cons_list(list):
+    while True:
+        match list:
+            case List.Cons.type(value, tail):
+                print(value, end=", ")
+                list = tail
+            case List.Nil.type():
+                break
+
+
+data = gen_list(5, 1000)
+cons_list = to_cons_list(data)
+sorted_list = book.defs.Sort(cons_list)
+sorted_list = sorted_list.to_adt(book.adts.List)
+print_cons_list(sorted_list)
 ```
 
 ## Development
+
+Dependencies:
+
+- Python 3.11+
+- Rust
+- C compiler
+- maturin
+
+### Getting dependencies with Nix (optional)
 
 - Install Nix with [Determinate Nix Installer]
 
@@ -61,8 +97,20 @@ class Leaf2:
 
 - You can run `nix develop` to enter a shell with the dependencies installed.
 
-- You can use [`direnv`][direnv] to automatically load the environment when you
-  enter the project directory.
+### Building
+
+- Create and activate a Python virtual environment.
+  - e.g. with
+    ```
+    python -m venv .venv
+    source .venv/bin/activate
+    ```
+
+- Run `make` to build the project and install the `benda` package in the virtual
+  environment.
+
+<!-- - You can use [`direnv`][direnv] to automatically load the environment when you
+  enter the project directory. -->
 
 [Determinate Nix Installer]: https://install.determinate.systems
 [direnv]: https://direnv.net

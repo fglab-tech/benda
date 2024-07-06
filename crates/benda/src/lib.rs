@@ -1,3 +1,5 @@
+use std::fs::{remove_dir, File};
+use std::io::Write;
 use std::path::Path;
 
 use num_traits::ToPrimitive;
@@ -19,19 +21,28 @@ fn switch() -> PyResult<String> {
 }
 
 #[pyfunction]
+fn load_book(py: Python, code: Py<PyString>) -> PyResult<Py<Book>> {
+    let mut tmp_file = File::create_new("./tmp/bend_book.tmp")
+        .expect("Could not create temporary file.");
+
+    let _ = tmp_file.write_all(code.to_string().as_bytes());
+    let _ = tmp_file.flush();
+
+    let path = Path::new("./tmp/bend_book.tmp");
+    let bend_book = bend::load_file_to_book(path);
+
+    let _ = std::fs::remove_file(path);
+
+    let book = Book::new(&mut bend_book.unwrap());
+
+    Ok(Py::new(py, book).unwrap())
+}
+
+#[pyfunction]
 fn load_book_from_file(py: Python, path: Py<PyString>) -> PyResult<Py<Book>> {
     let binding = path.to_string();
     let new_path = Path::new(&binding);
     let bend_book = bend::load_file_to_book(new_path);
-
-    //let code = std::fs::read_to_string(new_path)
-    //    .map_err(|e| e.to_string())
-    //    .unwrap();
-    //let bend_book = bend::fun::load_book::do_parse_book(
-    //    &code,
-    //    new_path,
-    //    BendBook::default(),
-    //);
 
     let book = Book::new(&mut bend_book.unwrap());
 
@@ -138,6 +149,7 @@ impl PyBjit {
 fn benda(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(switch, m)?)?;
     m.add_function(wrap_pyfunction!(load_book_from_file, m)?)?;
+    m.add_function(wrap_pyfunction!(load_book, m)?)?;
     m.add_class::<PyBjit>()?;
     m.add_class::<U24>()?;
     m.add_class::<Tree>()?;

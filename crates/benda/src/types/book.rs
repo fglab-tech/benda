@@ -71,7 +71,7 @@ macro_rules! generate_structs {
         #[pyclass(name = $name)]
         #[derive(Clone, Debug)]
         pub struct $iden {
-            entire_name: String,
+            full_name: String,
             name: String,
             fields: IndexMap<String, Option<Py<PyAny>>>,
         }
@@ -105,10 +105,7 @@ macro_rules! generate_structs {
 
             fn __str__(&self) -> String {
                 let mut out = String::new();
-                out.push_str(
-                    format!("Bend ADT: {}", self.entire_name).as_str(),
-                );
-
+                out.push_str(format!("<Bend ADT {}>", self.full_name).as_str());
                 out
             }
 
@@ -136,19 +133,29 @@ macro_rules! generate_structs {
                 }
             }
 
+            #[getter]
+            fn r#type(&self) -> PyResult<PyObject> {
+                Python::with_gil(|py| {
+                    let ctr_type = $iden::type_object_bound(py).to_object(py);
+                    Ok(ctr_type)
+                })
+            }
+
             fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<PyObject> {
                 let field = object.to_string();
 
                 let py = object.py();
 
-                if field == "type" {
+                if field == "__variant" {
                     return Ok(
-                        PyString::new_bound(py, &self.entire_name).into_py(py)
+                        PyString::new_bound(py, &self.full_name).into_py(py)
                     );
                 }
 
-                if &object.to_string() == "name" {
-                    return Ok(PyString::new_bound(py, &self.name).into());
+                if field == "__ctr_type__" {
+                    return Ok(
+                        PyString::new_bound(py, &self.full_name).into_py(py)
+                    );
                 }
 
                 if let Ok(val) = object.to_string().parse::<usize>() {
@@ -173,6 +180,9 @@ generate_structs!("Ctr2", Ctr2);
 generate_structs!("Ctr3", Ctr3);
 generate_structs!("Ctr4", Ctr4);
 generate_structs!("Ctr5", Ctr5);
+generate_structs!("Ctr6", Ctr6);
+generate_structs!("Ctr7", Ctr7);
+generate_structs!("Ctr8", Ctr8);
 
 #[pyclass(name = "Ctrs")]
 #[derive(Clone, Debug, Default)]
@@ -183,6 +193,9 @@ pub struct Ctrs {
     pub third: Option<Ctr3>,
     pub fourth: Option<Ctr4>,
     pub fifth: Option<Ctr5>,
+    pub sixth: Option<Ctr6>,
+    pub seventh: Option<Ctr7>,
+    pub eighth: Option<Ctr8>,
 }
 
 impl Ctrs {
@@ -208,13 +221,10 @@ impl Ctrs {
 
 #[pymethods]
 impl Ctrs {
-    fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<pyo3::PyObject> {
-        let py = object.py();
+    fn __getattr__(&self, name: Bound<PyAny>) -> PyResult<pyo3::PyObject> {
+        let py = name.py();
 
-        if object.to_string().starts_with('t') {
-            let b_name = object.to_string();
-            let name = b_name.strip_prefix('t').unwrap();
-
+        if let Some(name) = name.to_string().strip_suffix("_t") {
             let index = self.fields.get_index_of(name).unwrap();
 
             let res = match index {
@@ -233,10 +243,10 @@ impl Ctrs {
             return Ok(res.to_object(py));
         }
 
-        if let Some(val) = self.fields.get(&object.to_string()) {
+        if let Some(val) = self.fields.get(&name.to_string()) {
             Ok(val.clone())
         } else {
-            new_err(format!("Could not find attr {}", object))
+            new_err(format!("Could not find attr {}", name))
         }
     }
 }
@@ -422,6 +432,9 @@ impl Book {
             let mut third: Option<Ctr3> = None;
             let mut fourth: Option<Ctr4> = None;
             let mut fifth: Option<Ctr5> = None;
+            let mut sixth: Option<Ctr6> = None;
+            let mut seventh: Option<Ctr7> = None;
+            let mut eighth: Option<Ctr8> = None;
 
             for (index, (ctr_name, ctr_fields)) in
                 bend_adt.ctrs.iter().enumerate()
@@ -432,7 +445,7 @@ impl Book {
                     0 => {
                         let mut ct = Ctr1 {
                             name: new_name.clone(),
-                            entire_name: ctr_name.to_string(),
+                            full_name: ctr_name.to_string(),
                             fields: IndexMap::new(),
                         };
                         for c in ctr_fields {
@@ -446,7 +459,7 @@ impl Book {
                     1 => {
                         let mut ct = Ctr2 {
                             name: new_name.clone(),
-                            entire_name: ctr_name.to_string(),
+                            full_name: ctr_name.to_string(),
                             fields: IndexMap::new(),
                         };
                         for c in ctr_fields {
@@ -460,7 +473,7 @@ impl Book {
                     2 => {
                         let mut ct = Ctr3 {
                             name: new_name.clone(),
-                            entire_name: ctr_name.to_string(),
+                            full_name: ctr_name.to_string(),
                             fields: IndexMap::new(),
                         };
                         for c in ctr_fields {
@@ -474,7 +487,7 @@ impl Book {
                     3 => {
                         let mut ct = Ctr4 {
                             name: new_name.clone(),
-                            entire_name: ctr_name.to_string(),
+                            full_name: ctr_name.to_string(),
                             fields: IndexMap::new(),
                         };
                         for c in ctr_fields {
@@ -489,7 +502,7 @@ impl Book {
                     4 => {
                         let mut ct = Ctr5 {
                             name: new_name.clone(),
-                            entire_name: ctr_name.to_string(),
+                            full_name: ctr_name.to_string(),
                             fields: IndexMap::new(),
                         };
                         for c in ctr_fields {
@@ -501,6 +514,49 @@ impl Book {
                             .insert(new_name, ct.into_py(py).as_any().clone());
                     }
 
+                    5 => {
+                        let mut ct = Ctr6 {
+                            name: new_name.clone(),
+                            full_name: ctr_name.to_string(),
+                            fields: IndexMap::new(),
+                        };
+                        for c in ctr_fields {
+                            ct.fields.insert(c.nam.to_string(), None);
+                        }
+                        sixth = Some(ct.clone());
+                        all_ctrs
+                            .fields
+                            .insert(new_name, ct.into_py(py).as_any().clone());
+                    }
+                    6 => {
+                        let mut ct = Ctr7 {
+                            name: new_name.clone(),
+                            full_name: ctr_name.to_string(),
+                            fields: IndexMap::new(),
+                        };
+                        for c in ctr_fields {
+                            ct.fields.insert(c.nam.to_string(), None);
+                        }
+                        seventh = Some(ct.clone());
+                        all_ctrs
+                            .fields
+                            .insert(new_name, ct.into_py(py).as_any().clone());
+                    }
+
+                    7 => {
+                        let mut ct = Ctr8 {
+                            name: new_name.clone(),
+                            full_name: ctr_name.to_string(),
+                            fields: IndexMap::new(),
+                        };
+                        for c in ctr_fields {
+                            ct.fields.insert(c.nam.to_string(), None);
+                        }
+                        eighth = Some(ct.clone());
+                        all_ctrs
+                            .fields
+                            .insert(new_name, ct.into_py(py).as_any().clone());
+                    }
                     _ => panic!("Type must have up to 5 Ctrs"),
                 });
             }
@@ -510,6 +566,9 @@ impl Book {
             all_ctrs.third = third;
             all_ctrs.fourth = fourth;
             all_ctrs.fifth = fifth;
+            all_ctrs.sixth = sixth;
+            all_ctrs.seventh = seventh;
+            all_ctrs.eighth = eighth;
 
             adts.adts.insert(adt_name.to_string(), all_ctrs);
         }
@@ -541,22 +600,25 @@ impl Book {
 
 #[pymethods]
 impl Book {
-    fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<PyObject> {
-        let binding = object.to_string();
-        let field = binding.as_str();
-        let py = object.py();
+    #[getter]
+    fn adts(&self) -> PyResult<PyObject> {
+        Python::with_gil(|py| {
+            let adt = &self.adts;
+            Ok(adt.clone().into_py(py))
+        })
+    }
 
-        match field {
-            "adts" => {
-                let adt = &self.adts;
-                Ok(adt.clone().into_py(py))
-            }
-            "defs" => {
-                let def = &self.defs;
-                Ok(def.clone().into_py(py))
-            }
+    #[getter]
+    fn defs(&self) -> PyResult<PyObject> {
+        Python::with_gil(|py| {
+            let defs = &self.defs;
+            Ok(defs.clone().into_py(py))
+        })
+    }
 
-            _ => new_err(format!("Could not find attribute {}", object)),
-        }
+    fn __getattr__(&self, attr_name: Bound<PyAny>) -> PyResult<PyObject> {
+        let attr_name = attr_name.to_string();
+
+        new_err(format!("Could not find attribute {}", attr_name))
     }
 }
