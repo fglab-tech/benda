@@ -214,6 +214,15 @@ impl Ctrs {
         if self.fifth.as_ref().unwrap().arity() == 0 {
             return Some(Box::new(self.fifth.clone().unwrap()));
         }
+        if self.sixth.as_ref().unwrap().arity() == 0 {
+            return Some(Box::new(self.sixth.clone().unwrap()));
+        }
+        if self.seventh.as_ref().unwrap().arity() == 0 {
+            return Some(Box::new(self.seventh.clone().unwrap()));
+        }
+        if self.eighth.as_ref().unwrap().arity() == 0 {
+            return Some(Box::new(self.eighth.clone().unwrap()));
+        }
         None
     }
 }
