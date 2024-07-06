@@ -1,4 +1,4 @@
-use std::fs::{remove_dir, File};
+use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 

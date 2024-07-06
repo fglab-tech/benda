@@ -72,7 +72,6 @@ macro_rules! generate_structs {
         #[derive(Clone, Debug)]
         pub struct $iden {
             full_name: String,
-            name: String,
             fields: IndexMap<String, Option<Py<PyAny>>>,
         }
 
@@ -444,7 +443,6 @@ impl Book {
                 Python::with_gil(|py| match index {
                     0 => {
                         let mut ct = Ctr1 {
-                            name: new_name.clone(),
                             full_name: ctr_name.to_string(),
                             fields: IndexMap::new(),
                         };
@@ -458,7 +456,6 @@ impl Book {
                     }
                     1 => {
                         let mut ct = Ctr2 {
-                            name: new_name.clone(),
                             full_name: ctr_name.to_string(),
                             fields: IndexMap::new(),
                         };
@@ -472,7 +469,6 @@ impl Book {
                     }
                     2 => {
                         let mut ct = Ctr3 {
-                            name: new_name.clone(),
                             full_name: ctr_name.to_string(),
                             fields: IndexMap::new(),
                         };
@@ -486,7 +482,6 @@ impl Book {
                     }
                     3 => {
                         let mut ct = Ctr4 {
-                            name: new_name.clone(),
                             full_name: ctr_name.to_string(),
                             fields: IndexMap::new(),
                         };
@@ -501,7 +496,6 @@ impl Book {
 
                     4 => {
                         let mut ct = Ctr5 {
-                            name: new_name.clone(),
                             full_name: ctr_name.to_string(),
                             fields: IndexMap::new(),
                         };
@@ -516,7 +510,6 @@ impl Book {
 
                     5 => {
                         let mut ct = Ctr6 {
-                            name: new_name.clone(),
                             full_name: ctr_name.to_string(),
                             fields: IndexMap::new(),
                         };
@@ -530,7 +523,6 @@ impl Book {
                     }
                     6 => {
                         let mut ct = Ctr7 {
-                            name: new_name.clone(),
                             full_name: ctr_name.to_string(),
                             fields: IndexMap::new(),
                         };
@@ -545,7 +537,6 @@ impl Book {
 
                     7 => {
                         let mut ct = Ctr8 {
-                            name: new_name.clone(),
                             full_name: ctr_name.to_string(),
                             fields: IndexMap::new(),
                         };
