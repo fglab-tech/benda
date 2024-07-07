@@ -10,13 +10,20 @@
 
 ## Introduction
 
-If there is some part of your Python code that needs speed and you have a Bend function that does the job, you can use the Benda FFI to call that function from Python. Use the power of Bend to speed up your Python code.
+When you need to optimize performance-critical sections of your Python code, Benda FFI allows you to seamlessly integrate high-performance Bend functions. By leveraging Bend's capabilities, you can significantly enhance the speed and efficiency of your Python applications.
 
 ## Functions
 
-The `benda ffi` has the following functions:
+The `benda ffi` module provides the following key function:
 
-- `load_book_from_file()` - Load a book from a file, returns a book object;
+- `load_book_from_file(file_path: str) -> Book`: Loads a Bend book from the specified file path and returns a Book object.
+
+Example usage:
+```python
+from benda import load_book_from_file
+
+book = load_book_from_file("./path/to/your/bendbook.bend")
+```
 
 ## Book
 
@@ -24,10 +31,25 @@ A book object has the following uses:
 
 - `book.adts` - Get the adts of the book. Example: `book.adts.List`;
 - `book.defs` - Get the definitions, or bend functions, of the book. Example: `book.defs.Sort()`;
+<br>
+You can modify the Book's runtime environment using the `book.set_cmd()` function. This function accepts an argument of type `BendCommand`, an Enum that specifies the desired runtime. Available options include:
+
+- `BendCommand.Rust`: Use the Rust runtime
+- `BendCommand.C`: Use the C runtime
+- `BendCommand.Cuda`: Use the CUDA runtime for GPU acceleration
+
+Example usage:
+```python
+from benda import BendCommand
+
+book.set_cmd(BendCommand.Cuda)  # Set the runtime to Cuda
+```
+
+Choose the appropriate runtime based on your performance requirements and available hardware
 
 ## ADTs
 
-A ADT is a way to define a data structure in Bend. The Benda FFI can load the ADTs defined in a Book and expose them in Python. All the builtin ADTs of Bend are in any book loaded.<br>
+Abstract Data Types (ADTs) in Bend provide a powerful way to define complex data structures. The Benda FFI seamlessly loads ADTs defined in a Bend Book and makes them accessible in Python. Every loaded Book includes all of Bend's built-in ADTs, ensuring you have access to a rich set of data structures out of the box.<br>
 The way to use a ADT is to access it from a `adts` object. Every ADT is composed of a set of `Constructors`, and each of these represent a instance of the ADT.<br>
 Example:
 
@@ -53,19 +75,20 @@ These ADTs can be accessed using `match` statements to extract the values from t
 ``` python
 
 my_list = to_cons_list([1, 2, 3, 4, 5])
+List = book.adts.List
 
 while True:
     match my_list:
-        case book.adts.List.tCons(value, tail):
+        case List.Cons.type(value, tail):
             print(value)
             my_list = tail
-        case book.adts.List.tNil():
+        case List.Nil.type():
             print("End")
             break
 
 ```
 
-Notice that the Constructors in this case are prefixed with a `t` to indicate that you are matching the `types` of the constructors. Every time you want to pattern match a ADT, you need to prefix the constructor with a `t`.<br>
+Notice that you're matching against the `type` attribute of a Constructor, so everytime you need to use a `match` with an ADT, you need to use this attribute. This is due to [pyo3](https://pyo3.rs/v0.22.1/br) limitation of creating types at runtime.<br>
 
 ## Definitions
 
@@ -101,7 +124,8 @@ This way you can convert the `Term` object into a ADT to use complex data struct
 
 ## Superpositions
 
-Use [superpositions](https://gist.github.com/VictorTaelin/9061306220929f04e7e6980f23ade615) to boost your code performance. Superpositions are a way to call a Bend function multiple times using a `Tuple` of values.<br>
+Leverage [superpositions](https://gist.github.com/VictorTaelin/9061306220929f04e7e6980f23ade615) to significantly enhance your code's performance. Superpositions allow you to efficiently apply a Bend function to multiple input values simultaneously, exploiting parallelism and reducing overall computation time.<br>
+
 Example:
 ```python
 import benda

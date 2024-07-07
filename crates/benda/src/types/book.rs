@@ -1,5 +1,6 @@
 use core::panic;
 use std::cell::RefCell;
+use std::fmt::Display;
 use std::vec;
 
 use bend::fun::{self, Book as BendBook, Name, Rule};
@@ -259,11 +260,31 @@ impl Ctrs {
     }
 }
 
+#[pyclass]
+#[derive(Clone, Debug, Default)]
+pub enum BendCommand {
+    #[default]
+    Rust,
+    C,
+    Cuda,
+}
+
+impl Display for BendCommand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BendCommand::Rust => f.write_str("run"),
+            BendCommand::C => f.write_str("run-c"),
+            BendCommand::Cuda => f.write_str("run-cu"),
+        }
+    }
+}
+
 #[pyclass(name = "Definition")]
 #[derive(Clone, Debug, Default)]
 pub struct Definition {
     arity: usize,
     name: String,
+    cmd: Option<BendCommand>,
 }
 
 #[pymethods]
@@ -356,7 +377,10 @@ impl Definition {
             b.defs
                 .insert(Name::new("main"), main_def.to_fun(true).unwrap());
 
-            let res = benda_ffi::run(&b.clone());
+            let res = benda_ffi::run(
+                &b.clone(),
+                &self.cmd.clone().unwrap_or_default().to_string(),
+            );
 
             GLOBAL_BOOK.set(bend_book);
 
@@ -375,6 +399,7 @@ impl Definition {
 #[derive(Clone, Debug, Default)]
 pub struct Definitions {
     defs: IndexMap<String, Definition>,
+    cmd: Option<BendCommand>,
 }
 
 #[pymethods]
@@ -385,7 +410,9 @@ impl Definitions {
         let py = object.py();
 
         if let Some(def) = self.defs.get(field) {
-            Ok(Py::new(py, def.clone())?)
+            let mut def = def.clone();
+            def.cmd = self.cmd.clone();
+            Ok(Py::new(py, def)?)
         } else {
             new_err(format!("Could not find attr {}", object))
         }
@@ -426,6 +453,7 @@ impl Adts {
 pub struct Book {
     adts: Adts,
     defs: Definitions,
+    cmd: Option<BendCommand>,
 }
 
 impl Book {
@@ -579,6 +607,7 @@ impl Book {
             let new_def = Definition {
                 arity: def.arity(),
                 name: def.name.to_string(),
+                cmd: None,
             };
             definitions.defs.insert(nam.to_string(), new_def);
         }
@@ -591,6 +620,7 @@ impl Book {
         let benda_book = Self {
             adts,
             defs: definitions,
+            cmd: None,
         };
         GLOBAL_BENDA_BOOK.set(Some(benda_book.clone()));
 
@@ -600,6 +630,10 @@ impl Book {
 
 #[pymethods]
 impl Book {
+    fn set_cmd(&mut self, cmd: BendCommand) {
+        self.cmd = Some(cmd);
+    }
+
     #[getter]
     fn adts(&self) -> PyResult<PyObject> {
         Python::with_gil(|py| {
@@ -611,8 +645,9 @@ impl Book {
     #[getter]
     fn defs(&self) -> PyResult<PyObject> {
         Python::with_gil(|py| {
-            let defs = &self.defs;
-            Ok(defs.clone().into_py(py))
+            let mut defs = self.defs.clone();
+            defs.cmd = self.cmd.clone();
+            Ok(defs.into_py(py))
         })
     }
 

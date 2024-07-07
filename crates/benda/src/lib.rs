@@ -1,5 +1,3 @@
-use std::fs::File;
-use std::io::Write;
 use std::path::Path;
 
 use num_traits::ToPrimitive;
@@ -7,7 +5,7 @@ use parser::Parser;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyFunction, PyString, PyTuple};
 use rustpython_parser::{parse, Mode};
-use types::book::Book;
+use types::book::{BendCommand, Book};
 use types::fan::Fan;
 use types::tree::{Leaf, Node, Tree};
 use types::u24::U24;
@@ -22,16 +20,13 @@ fn switch() -> PyResult<String> {
 
 #[pyfunction]
 fn load_book(py: Python, code: Py<PyString>) -> PyResult<Py<Book>> {
-    let mut tmp_file = File::create_new("./tmp/bend_book.tmp")
-        .expect("Could not create temporary file.");
-
-    let _ = tmp_file.write_all(code.to_string().as_bytes());
-    let _ = tmp_file.flush();
-
+    let builtins = bend::fun::Book::builtins();
     let path = Path::new("./tmp/bend_book.tmp");
-    let bend_book = bend::load_file_to_book(path);
-
-    let _ = std::fs::remove_file(path);
+    let bend_book = bend::fun::load_book::do_parse_book(
+        code.to_string().as_str(),
+        path,
+        builtins,
+    );
 
     let book = Book::new(&mut bend_book.unwrap());
 
@@ -150,6 +145,7 @@ fn benda(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(switch, m)?)?;
     m.add_function(wrap_pyfunction!(load_book_from_file, m)?)?;
     m.add_function(wrap_pyfunction!(load_book, m)?)?;
+    m.add_class::<BendCommand>()?;
     m.add_class::<PyBjit>()?;
     m.add_class::<U24>()?;
     m.add_class::<Tree>()?;

@@ -7,7 +7,7 @@
 [Bend]: https://github.com/HigherOrderCo/bend
 
 Read the Docs:<br>
-[FFI](https://github.com/vkobinski/benda-main/tree/master/docs/FFI.md)
+[FFI](/docs/FFI.md)
 
 This is in MVP stage.
 
@@ -72,6 +72,7 @@ def print_cons_list(list):
 
 data = gen_list(5, 1000)
 cons_list = to_cons_list(data)
+book.set_cmd(benda.BendCommand.Cuda)
 sorted_list = book.defs.Sort(cons_list)
 sorted_list = sorted_list.to_adt(book.adts.List)
 print_cons_list(sorted_list)

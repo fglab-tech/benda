@@ -6,7 +6,7 @@ use bend::{CompileOpts, RunOpts};
  * TODO: move to another module
  * TODO: docstring
  */
-pub fn run(book: &Book) -> Option<(Term, String, Diagnostics)> {
+pub fn run(book: &Book, cmd: &str) -> Option<(Term, String, Diagnostics)> {
     let run_opts = RunOpts::default();
     let compile_opts = CompileOpts::default().set_all();
     let diagnostics_cfg = DiagnosticsConfig::default();
@@ -18,7 +18,7 @@ pub fn run(book: &Book) -> Option<(Term, String, Diagnostics)> {
         compile_opts,
         diagnostics_cfg,
         args,
-        "run",
+        cmd,
     )
     .unwrap()
 }

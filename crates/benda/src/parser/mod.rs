@@ -885,7 +885,7 @@ impl<'py> Parser<'py> {
 
         //println!("BEND:\n {}", self.book.display_pretty());
 
-        let return_val = run(&self.book);
+        let return_val = run(&self.book, "run");
 
         match return_val {
             Some(val) => val.0.to_string(),
