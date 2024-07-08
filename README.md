@@ -78,6 +78,13 @@ sorted_list = sorted_list.to_adt(book.adts.List)
 print_cons_list(sorted_list)
 ```
 
+## Install
+
+To install the current release:
+```
+$ pip install benda
+```
+
 ## Development
 
 Dependencies:

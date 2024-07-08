@@ -1,6 +1,5 @@
 import benda
 import random
-import time
 
 book = benda.load_book_from_file("./examples/quicksort_tree.bend")
 
