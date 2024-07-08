@@ -13,7 +13,7 @@ use rustpython_parser::ast::{
     StmtClassDef, StmtExpr, StmtFunctionDef, StmtIf, StmtMatch,
 };
 
-use crate::benda_ffi::run;
+use crate::b_ffi::run;
 use crate::types::{extract_type, extract_type_expr};
 
 #[derive(Clone, Debug)]
@@ -855,7 +855,11 @@ impl<'py> Parser<'py> {
     }
 
     // Main function of the library, it parses the Python Module
-    pub fn parse(&mut self, fun: &str, py_args: &[String]) -> String {
+    pub fn parse(
+        &mut self,
+        fun: &str,
+        py_args: &[String],
+    ) -> Result<String, String> {
         for stmt in self.statements.clone() {
             match stmt {
                 rStmt::FunctionDef(fun_def) => {
@@ -888,8 +892,12 @@ impl<'py> Parser<'py> {
         let return_val = run(&self.book, "run");
 
         match return_val {
-            Some(val) => val.0.to_string(),
-            None => panic!("Could not run Bend code."),
+            Ok(val) => match val {
+                Some(val) => Ok(val.0.to_string()),
+                None => Err(String::from("Could not parse HVM output")),
+            },
+
+            Err(e) => Err(e.to_string()),
         }
     }
 }

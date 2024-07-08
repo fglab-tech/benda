@@ -3,14 +3,14 @@ use std::ops::{Add, Sub};
 use bend::imp;
 use pyo3::{pyclass, pymethods};
 
-use super::{BendType, ToBendResult};
+use super::{BendResult, BendType};
 
 #[pyclass(module = "benda")]
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct F24(f32);
 
 impl BendType for F24 {
-    fn to_bend(&self) -> ToBendResult {
+    fn to_bend(&self) -> BendResult {
         Ok(imp::Expr::Num {
             val: bend::fun::Num::F24(self.0),
         })

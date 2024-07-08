@@ -6,7 +6,7 @@ use pyo3::types::{PyAnyMethods, PyTuple, PyTypeMethods};
 use pyo3::{pyclass, pymethods, Bound};
 
 use super::u24::U24;
-use super::{BendType, ToBendResult};
+use super::{BendResult, BendType};
 use crate::types::extract_inner;
 
 #[derive(Clone, Debug)]
@@ -16,7 +16,7 @@ pub struct Leaf {
 }
 
 impl BendType for Leaf {
-    fn to_bend(&self) -> ToBendResult {
+    fn to_bend(&self) -> BendResult {
         self.value.to_bend()
     }
 }
@@ -80,7 +80,7 @@ impl Node {
 }
 
 impl BendType for Node {
-    fn to_bend(&self) -> ToBendResult {
+    fn to_bend(&self) -> BendResult {
         let mut trees: Vec<imp::Expr> = vec![];
 
         if let Some(left) = &self.left {
@@ -113,7 +113,7 @@ pub struct Tree {
 }
 
 impl BendType for Tree {
-    fn to_bend(&self) -> ToBendResult {
+    fn to_bend(&self) -> BendResult {
         if let Some(leaf) = &self.leaf {
             return leaf.to_bend();
         }

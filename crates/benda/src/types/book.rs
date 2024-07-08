@@ -14,7 +14,7 @@ use pyo3::PyTypeInfo;
 use super::fan::Fan;
 use super::user_adt::{from_term_into_adt, UserAdt};
 use super::{extract_type_raw, BendType};
-use crate::benda_ffi;
+use crate::b_ffi;
 use crate::types::user_adt::BendCtr;
 
 fn new_err<T>(str: String) -> PyResult<T> {
@@ -377,16 +377,26 @@ impl Definition {
             b.defs
                 .insert(Name::new("main"), main_def.to_fun(true).unwrap());
 
-            let res = benda_ffi::run(
+            let res = b_ffi::run(
                 &b.clone(),
                 &self.cmd.clone().unwrap_or_default().to_string(),
             );
 
             GLOBAL_BOOK.set(bend_book);
 
-            let ret_term = Term {
-                term: res.unwrap().0,
-            };
+            let ret_term: Term;
+
+            match res {
+                Ok(res) => match res {
+                    Some(res) => ret_term = Term { term: res.0 },
+                    None => {
+                        return new_err(
+                            "Could not parse HVM output".to_string(),
+                        )
+                    }
+                },
+                Err(e) => return new_err(e.to_string()),
+            }
 
             return Ok(ret_term.into_py(py));
         }

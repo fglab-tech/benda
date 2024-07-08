@@ -18,14 +18,14 @@ pub mod tree;
 pub mod u24;
 pub mod user_adt;
 
-/**
- * TODO: document
- */
+/// Trait for converting types to Bend expressions
+///
+/// This trait defines the interface for converting various types into Bend expressions.
 pub trait BendType {
-    fn to_bend(&self) -> ToBendResult;
+    fn to_bend(&self) -> BendResult;
 }
 
-type ToBendResult = Result<imp::Expr, PyErr>;
+type BendResult = Result<imp::Expr, PyErr>;
 
 pub fn extract_inner<'py, T: BendType + PyTypeCheck + FromPyObject<'py>>(
     arg: Bound<'py, PyAny>,
@@ -50,7 +50,7 @@ pub fn extract_num_raw(
     }
 }
 
-pub fn extract_num(arg: Bound<PyAny>, t_type: BuiltinType) -> ToBendResult {
+pub fn extract_num(arg: Bound<PyAny>, t_type: BuiltinType) -> BendResult {
     match t_type {
         BuiltinType::I32 => arg.to_string().parse::<i32>().unwrap().to_bend(),
         BuiltinType::F32 => arg.to_string().parse::<f32>().unwrap().to_bend(),
@@ -73,7 +73,7 @@ pub fn extract_type_raw(arg: Bound<PyAny>) -> Option<Box<dyn BendType>> {
     }
 }
 
-pub fn extract_type(arg: Bound<PyAny>, book: &Book) -> ToBendResult {
+pub fn extract_type(arg: Bound<PyAny>, book: &Book) -> BendResult {
     let t_type = arg.get_type();
     let name = t_type.name().unwrap();
 
@@ -177,7 +177,7 @@ impl From<String> for BuiltinType {
 }
 
 impl BendType for u32 {
-    fn to_bend(&self) -> ToBendResult {
+    fn to_bend(&self) -> BendResult {
         Ok(imp::Expr::Num {
             val: Num::U24(*self),
         })
@@ -185,7 +185,7 @@ impl BendType for u32 {
 }
 
 impl BendType for f32 {
-    fn to_bend(&self) -> ToBendResult {
+    fn to_bend(&self) -> BendResult {
         Ok(imp::Expr::Num {
             val: Num::F24(*self),
         })
@@ -193,7 +193,7 @@ impl BendType for f32 {
 }
 
 impl BendType for i32 {
-    fn to_bend(&self) -> ToBendResult {
+    fn to_bend(&self) -> BendResult {
         Ok(imp::Expr::Num {
             //val: Num::I24(*self),
             val: Num::I24(*self),
@@ -202,7 +202,7 @@ impl BendType for i32 {
 }
 
 impl BendType for PyFloat {
-    fn to_bend(&self) -> ToBendResult {
+    fn to_bend(&self) -> BendResult {
         let num: Result<f32, PyErr> = self.extract();
 
         match num {

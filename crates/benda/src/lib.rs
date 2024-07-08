@@ -1,7 +1,47 @@
+//! Benda Module
+//!
+//! This module provides functionality for working with Bend code, including loading and parsing
+//! Bend books, and compiling Python functions to Bend code at runtime.
+//!
+//! The module includes functions for loading Bend books from strings or files, as well as
+//! the `PyBjit` class, which serves as an annotation for compiling Python functions to Bend code.
+//!
+//! # Key Components
+//!
+//! - `load_book`: Load a Bend book from a string of Bend code
+//! - `load_book_from_file`: Load a Bend book from a file
+//! - `PyBjit`: Annotation class for compiling Python functions to Bend code at runtime
+//!
+//! # Examples
+//!
+//! ```python
+//! from benda import bjit, load_book
+//!
+//! # Load a Bend book from a string
+//! book = load_book("some bend code here")
+//!
+//! # Use the bjit annotation to compile a Python function to Bend code
+//! @bjit
+//! def add(x, y):
+//!     return x + y
+//!
+//! result = add(1, 2)  # This will execute the Bend-compiled version of the function
+//! print(result)  # Output: 3
+//!
+//! # Load a Bend book from a file
+//! book_from_file = load_book_from_file("/path/to/bend/file.bend")
+//! ```
+//!
+//! # Note
+//!
+//! This module integrates Python and Bend, allowing for seamless interaction between the two languages.
+//! It's particularly useful for projects that need to leverage Bend's capabilities while working within a Python environment.
+
 use std::path::Path;
 
 use num_traits::ToPrimitive;
 use parser::Parser;
+use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyFunction, PyString, PyTuple};
 use rustpython_parser::{parse, Mode};
@@ -9,7 +49,7 @@ use types::book::{BendCommand, Book};
 use types::fan::Fan;
 use types::tree::{Leaf, Node, Tree};
 use types::u24::U24;
-mod benda_ffi;
+mod b_ffi;
 mod parser;
 mod types;
 
@@ -18,6 +58,24 @@ fn switch() -> PyResult<String> {
     Ok("Ok".to_string())
 }
 
+/// Load a Book from a string of Bend code
+///
+/// This function parses a string of Bend code and creates a `Book` instance.
+///
+/// # Arguments
+///
+/// * `code` - A Python String containing the Bend code
+///
+/// # Returns
+///
+/// Returns a `Book` instance.
+///
+/// # Examples
+///
+/// ```python
+/// book = benda.load_book("def Example: ...")
+/// book.defs.Example()
+/// ```
 #[pyfunction]
 fn load_book(py: Python, code: Py<PyString>) -> PyResult<Py<Book>> {
     let builtins = bend::fun::Book::builtins();
@@ -33,6 +91,24 @@ fn load_book(py: Python, code: Py<PyString>) -> PyResult<Py<Book>> {
     Ok(Py::new(py, book).unwrap())
 }
 
+/// Load a Book from a file
+///
+/// This function reads a Bend code file and creates a `Book` instance.
+///
+/// # Arguments
+///
+/// * `path` - A Python String containing the path to the Bend code file
+///
+/// # Returns
+///
+/// Returns a `Book` instance.
+///
+/// # Examples
+///
+/// ```python
+/// book = benda.load_book_from_file("./path/to/file.bend")
+/// book.defs.Example()
+/// ```
 #[pyfunction]
 fn load_book_from_file(py: Python, path: Py<PyString>) -> PyResult<Py<Book>> {
     let binding = path.to_string();
@@ -44,6 +120,25 @@ fn load_book_from_file(py: Python, path: Py<PyString>) -> PyResult<Py<Book>> {
     Ok(Py::new(py, book).unwrap())
 }
 
+/// Bjit decorator
+///
+/// A Python class that serves as an decorator to compile Python functions to Bend code at runtime.
+///
+/// # Fields
+///
+/// * `wraps` - A `function` representing the wrapped Python function
+///
+/// # Examples
+///
+/// ```python
+/// from benda import bjit
+///
+/// @bjit
+/// def my_function(x, y):
+///     return x + y
+///
+/// result = my_function(1, 2)  # This will execute the Bend-compiled version of the function
+/// ```
 #[pyclass(name = "bjit")]
 pub struct PyBjit {
     wraps: Py<PyAny>,
@@ -51,10 +146,44 @@ pub struct PyBjit {
 
 #[pymethods]
 impl PyBjit {
+    /// Create a new PyBjit instance
+    ///
+    /// # Arguments
+    ///
+    /// * `wraps` - A Python function to be compiled to Bend code
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `bjit` instance that wraps the given Python function.
     #[new]
     fn __new__(wraps: Py<PyAny>) -> Self {
         PyBjit { wraps }
     }
+    /// Call the Bend-compiled version of the wrapped Python function
+    ///
+    /// This method implements the runtime compilation and execution of the wrapped Python function.
+    /// It analyzes the function's code, compiles it to Bend code, and then executes the compiled version.
+    ///
+    /// # Arguments
+    ///
+    /// * `args` - A tuple of positional arguments to be passed to the function
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Any` containing the result of the Bend-compiled function execution.
+    ///
+    /// # Process
+    ///
+    /// 1. Extracts function metadata (name, filename, argument names, etc.)
+    /// 2. Parses the function's Python code
+    /// 3. Compiles the Python code to Bend code
+    /// 4. Executes the compiled Bend code with the provided arguments
+    /// 5. Returns the result of the execution
+    ///
+    /// # Notes
+    ///
+    /// - The compilation process occurs at runtime, which may introduce some overhead on the first call.
+    /// - Subsequent calls to the same function may benefit from caching, though this is not explicitly implemented in the current version.
     #[pyo3(signature = (*args, **_kwargs))]
     fn __call__(
         &self,
@@ -124,10 +253,21 @@ impl PyBjit {
                             );
                             let return_val =
                                 parser.parse(name.to_string().as_ref(), &[]);
-                            val = Some(PyString::new_bound(
-                                py,
-                                return_val.as_str(),
-                            ));
+
+                            match return_val {
+                                Ok(v) => {
+                                    val = Some(PyString::new_bound(
+                                        py,
+                                        v.as_str(),
+                                    ))
+                                }
+                                Err(e) => {
+                                    return Err(PyException::new_err(
+                                        e.to_string(),
+                                    ));
+                                }
+                            }
+
                             break;
                         }
                     }

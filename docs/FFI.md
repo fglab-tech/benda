@@ -1,5 +1,5 @@
 <h1>Bend FFI for Python</h1>
-<p>Use Bend functions, data structures and <strong>speed</strong> in Python</p>
+<p>Use Bend functions, data structures and <strong>capabilities</strong> in Python</p>
 
 ## Index
 1. [Introduction](#introduction)
@@ -10,7 +10,7 @@
 
 ## Introduction
 
-When you need to optimize performance-critical sections of your Python code, Benda FFI allows you to seamlessly integrate high-performance Bend functions. By leveraging Bend's capabilities, you can significantly enhance the speed and efficiency of your Python applications.
+When you want to use Bend on your Python code, Benda allows you to integrate Bend into Python using its ADTs, functions and capabilities.
 
 ## Functions
 
@@ -122,7 +122,7 @@ sorted_list = book.defs.Sort(my_list).to_adt(book.adts.List)
 
 This way you can convert the `Term` object into a ADT to use complex data structures in Python.<br>
 
-## Superpositions
+<!-- ## Superpositions
 
 Leverage [superpositions](https://gist.github.com/VictorTaelin/9061306220929f04e7e6980f23ade615) to significantly enhance your code's performance. Superpositions allow you to efficiently apply a Bend function to multiple input values simultaneously, exploiting parallelism and reducing overall computation time.<br>
 
@@ -141,4 +141,4 @@ print("Result:  ", result)
 
 ```
 
-Here, Fan represents a superposition of values. This code applies the `pred` function to all the possible values of x1 and x2. The result is a superposition of the results of the function applied to all the possible values of x1 and x2.<br>
+Here, Fan represents a superposition of values. This code applies the `pred` function to all the possible values of x1 and x2. The result is a superposition of the results of the function applied to all the possible values of x1 and x2.<br> -->
