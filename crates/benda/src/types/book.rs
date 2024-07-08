@@ -14,7 +14,7 @@ use pyo3::PyTypeInfo;
 use super::fan::Fan;
 use super::user_adt::{from_term_into_adt, UserAdt};
 use super::{extract_type_raw, BendType};
-use crate::b_ffi;
+use crate::benda_ffi;
 use crate::types::user_adt::BendCtr;
 
 fn new_err<T>(str: String) -> PyResult<T> {
@@ -377,7 +377,7 @@ impl Definition {
             b.defs
                 .insert(Name::new("main"), main_def.to_fun(true).unwrap());
 
-            let res = b_ffi::run(
+            let res = benda_ffi::run(
                 &b.clone(),
                 &self.cmd.clone().unwrap_or_default().to_string(),
             );

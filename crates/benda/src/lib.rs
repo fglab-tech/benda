@@ -49,7 +49,7 @@ use types::book::{BendCommand, Book};
 use types::fan::Fan;
 use types::tree::{Leaf, Node, Tree};
 use types::u24::U24;
-mod b_ffi;
+mod benda_ffi;
 mod parser;
 mod types;
 

@@ -13,7 +13,7 @@ use rustpython_parser::ast::{
     StmtClassDef, StmtExpr, StmtFunctionDef, StmtIf, StmtMatch,
 };
 
-use crate::b_ffi::run;
+use crate::benda_ffi::run;
 use crate::types::{extract_type, extract_type_expr};
 
 #[derive(Clone, Debug)]
