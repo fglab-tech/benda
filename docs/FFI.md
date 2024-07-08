@@ -32,17 +32,17 @@ A book object has the following uses:
 - `book.adts` - Get the adts of the book. Example: `book.adts.List`;
 - `book.defs` - Get the definitions, or bend functions, of the book. Example: `book.defs.Sort()`;
 <br>
-You can modify the Book's runtime environment using the `book.set_cmd()` function. This function accepts an argument of type `BendCommand`, an Enum that specifies the desired runtime. Available options include:
+You can modify the Book's runtime environment using the `book.set_cmd()` function. This function accepts an argument of type `BendRuntime`, an Enum that specifies the desired runtime. Available options include:
 
-- `BendCommand.Rust`: Use the Rust runtime
-- `BendCommand.C`: Use the C runtime
-- `BendCommand.Cuda`: Use the CUDA runtime for GPU acceleration
+- `BendRuntime.Rust`: Use the Rust runtime
+- `BendRuntime.C`: Use the C runtime
+- `BendRuntime.Cuda`: Use the CUDA runtime for GPU acceleration
 
 Example usage:
 ```python
-from benda import BendCommand
+from benda import BendRuntime
 
-book.set_cmd(BendCommand.Cuda)  # Set the runtime to Cuda
+book.set_cmd(BendRuntime.Cuda)  # Set the runtime to Cuda
 ```
 
 Choose the appropriate runtime based on your performance requirements and available hardware

@@ -15,7 +15,7 @@
 //! providing methods to create ADTs from Python objects and convert them back to Bend expressions.
 //!
 //! The `from_term_into_adt` function is a key component in parsing Bend terms into more manageable
-//! `TermParse` representations, which can then be further processed or converted as needed.
+//! `ADT`s representations, which can then be further processed or converted as needed.
 
 use std::vec;
 
@@ -50,19 +50,17 @@ fn num_to_i32(num: &Num) -> Option<i32> {
 ///
 /// This enum is used to represent different types of terms that can be parsed from Bend expressions.
 ///
-/// # Variants
-///
-/// * `I32(i32)` - An integer value
-/// * `Ctr(Box<dyn BendCtr>)` - A constructor for an ADT
-/// * `Any(Py<PyAny>)` - Any Python object
-/// * `Vec(Box<dyn BendCtr>, Vec<Py<PyAny>>)` - A vector of Python objects with an associated constructor
-/// * `Args(Vec<Py<PyAny>>)` - A vector of Python objects representing arguments
 #[derive(Debug)]
 pub enum TermParse {
+    ///  - An integer value
     I32(i32),
+    ///  - A constructor for an ADT
     Ctr(Box<dyn BendCtr>),
+    ///  - Any Python object
     Any(Py<PyAny>),
+    ///  - A vector of Python objects with an associated constructor
     Vec(Box<dyn BendCtr>, Vec<Py<PyAny>>),
+    ///  A vector of Python objects representing arguments
     Args(Vec<Py<PyAny>>),
 }
 
@@ -70,7 +68,7 @@ pub enum TermParse {
 ///
 /// This trait defines the interface for Bend constructors, allowing them to be converted to Python objects
 /// and called as constructors.
-pub(crate) trait BendCtr: std::fmt::Debug {
+pub trait BendCtr: std::fmt::Debug {
     fn to_py(&self, py: &Python) -> Py<PyAny>;
     fn call_constructor(&mut self, args: Bound<PyTuple>) -> PyResult<PyObject>;
     fn arity(&self) -> usize;

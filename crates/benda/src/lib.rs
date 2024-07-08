@@ -45,13 +45,12 @@ use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyFunction, PyString, PyTuple};
 use rustpython_parser::{parse, Mode};
-use types::book::{BendCommand, Book};
+use types::book::{BendRuntime, Book};
 use types::fan::Fan;
-use types::tree::{Leaf, Node, Tree};
 use types::u24::U24;
-mod benda_ffi;
+pub mod benda_ffi;
 mod parser;
-mod types;
+pub mod types;
 
 #[pyfunction]
 fn switch() -> PyResult<String> {
@@ -77,7 +76,7 @@ fn switch() -> PyResult<String> {
 /// book.defs.Example()
 /// ```
 #[pyfunction]
-fn load_book(py: Python, code: Py<PyString>) -> PyResult<Py<Book>> {
+pub fn load_book(py: Python, code: Py<PyString>) -> PyResult<Py<Book>> {
     let builtins = bend::fun::Book::builtins();
     let path = Path::new("./tmp/bend_book.tmp");
     let bend_book = bend::fun::load_book::do_parse_book(
@@ -110,7 +109,10 @@ fn load_book(py: Python, code: Py<PyString>) -> PyResult<Py<Book>> {
 /// book.defs.Example()
 /// ```
 #[pyfunction]
-fn load_book_from_file(py: Python, path: Py<PyString>) -> PyResult<Py<Book>> {
+pub fn load_book_from_file(
+    py: Python,
+    path: Py<PyString>,
+) -> PyResult<Py<Book>> {
     let binding = path.to_string();
     let new_path = Path::new(&binding);
     let bend_book = bend::load_file_to_book(new_path);
@@ -285,12 +287,9 @@ fn benda(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(switch, m)?)?;
     m.add_function(wrap_pyfunction!(load_book_from_file, m)?)?;
     m.add_function(wrap_pyfunction!(load_book, m)?)?;
-    m.add_class::<BendCommand>()?;
+    m.add_class::<BendRuntime>()?;
     m.add_class::<PyBjit>()?;
     m.add_class::<U24>()?;
-    m.add_class::<Tree>()?;
-    m.add_class::<Node>()?;
-    m.add_class::<Leaf>()?;
     m.add_class::<Fan>()?;
     Ok(())
 }

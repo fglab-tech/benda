@@ -24,7 +24,13 @@ fn new_err<T>(str: String) -> PyResult<T> {
 thread_local!(static GLOBAL_BOOK: RefCell<Option<BendBook>> = const { RefCell::new(None) });
 thread_local!(static GLOBAL_BENDA_BOOK: RefCell<Option<Book>> = const { RefCell::new(None) });
 
-/// Term is the HVM output in lambda encoding. Use `to_adt` method to turn it into a ADT.
+/// Term is the HVM output in lambda encoding.
+///
+/// This struct wraps a `bend::fun::Term` and provides methods to convert it to an ADT.
+///
+/// # Fields
+///
+/// * `term` - A `bend::fun::Term` representing the HVM output
 #[pyclass(name = "Term")]
 #[derive(Clone, Debug)]
 pub struct Term {
@@ -33,10 +39,42 @@ pub struct Term {
 
 #[pymethods]
 impl Term {
+    /// Returns a string representation of the Term
+    ///
+    /// This method uses the `display_pretty` function of the underlying `fun::Term`
+    /// to generate a formatted string representation.
+    ///
+    /// # Returns
+    ///
+    /// A String containing the pretty-printed representation of the Term
     fn __str__(&self) -> String {
         self.term.display_pretty(0).to_string()
     }
 
+    /// Converts the Term to an ADT (Algebraic Data Type)
+    ///
+    /// # Arguments
+    ///
+    /// * `t_type` - A PyAny object representing the target ADT type
+    ///
+    /// # Returns
+    ///
+    /// A PyResult containing the converted ADT as a PyAny object
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The conversion fails
+    /// - An invalid type is provided
+    /// - The Term cannot be parsed into the given ADT
+    ///
+    /// # Examples
+    ///
+    /// ```python
+    /// term = some_function_returning_term()
+    /// adt_type = MyADT  # Assuming MyADT is a defined Bend ADT
+    /// result = term.to_adt(adt_type)
+    /// ```
     fn to_adt(&self, t_type: Bound<PyAny>) -> PyResult<Py<PyAny>> {
         let py = t_type.py();
 
@@ -71,7 +109,7 @@ macro_rules! generate_structs {
     ($name:literal, $iden: ident) => {
         #[pyclass(name = $name)]
         #[derive(Clone, Debug)]
-        pub struct $iden {
+        pub(crate) struct $iden {
             full_name: String,
             fields: IndexMap<String, Option<Py<PyAny>>>,
         }
@@ -184,22 +222,68 @@ generate_structs!("Ctr6", Ctr6);
 generate_structs!("Ctr7", Ctr7);
 generate_structs!("Ctr8", Ctr8);
 
+/// Represents a Bend ADT (Algebraic Data Type)
+///
+/// A Bend ADT is a collection of constructors, like: List, Tree, Map, etc.
+/// This struct holds up to 8 constructors and provides methods to access them.
+///
+/// # Fields
+///
+/// * `fields` - An IndexMap of constructor names to their PyAny instance;
+/// * `first` to `eighth` - Optional fields for up to 8 constructors (Ctr1 to Ctr8);
+///
+/// # Note
+///
+/// Due to pyo3 limitations, a Bend ADT used in Benda can have only up to 8 constructors.
+/// This may change in the future if runtime types are added to pyo3.
+///
+/// # Examples
+///
+/// ```python
+/// import benda
+///
+/// book = benda.load_book_from_file("./path/to/file.bend")
+/// List = book.adts.List
+///
+/// a_list = List.Cons(1, List.Nil())
+/// ```
 #[pyclass(name = "Ctrs")]
 #[derive(Clone, Debug, Default)]
 pub struct Ctrs {
     fields: IndexMap<String, Py<PyAny>>,
-    pub first: Option<Ctr1>,
-    pub second: Option<Ctr2>,
-    pub third: Option<Ctr3>,
-    pub fourth: Option<Ctr4>,
-    pub fifth: Option<Ctr5>,
-    pub sixth: Option<Ctr6>,
-    pub seventh: Option<Ctr7>,
-    pub eighth: Option<Ctr8>,
+    pub(crate) first: Option<Ctr1>,
+    pub(crate) second: Option<Ctr2>,
+    pub(crate) third: Option<Ctr3>,
+    pub(crate) fourth: Option<Ctr4>,
+    pub(crate) fifth: Option<Ctr5>,
+    pub(crate) sixth: Option<Ctr6>,
+    pub(crate) seventh: Option<Ctr7>,
+    pub(crate) eighth: Option<Ctr8>,
 }
 
 impl Ctrs {
-    pub(crate) fn get_base_case(&self) -> Option<Box<dyn BendCtr>> {
+    /// Retrieves the base case constructor of the ADT, if it exists
+    ///
+    /// In Bend's lambda encoding, when a constructor has no fields (arity of 0),
+    /// the HVM hides it when returning the Term. This method identifies such a constructor,
+    /// which is considered the base case of the ADT.
+    ///
+    /// # Returns
+    ///
+    /// An `Option<Box<dyn BendCtr>>`:
+    /// - `Some(Box<dyn BendCtr>)` if a base case constructor (arity 0) is found
+    /// - `None` if no base case constructor is present in the ADT
+    ///
+    /// # Details
+    ///
+    /// The method checks each constructor (from `first` to `eighth`) in order.
+    /// It returns the first constructor with an arity of 0, wrapped in a `Box<dyn BendCtr>`.
+    ///
+    /// # Note
+    ///
+    /// This method assumes that at least one of the constructors (up to `eighth`) is `Some`.
+    /// It will panic if it encounters a `None` value before finding a base case or reaching the end.
+    pub fn get_base_case(&self) -> Option<Box<dyn BendCtr>> {
         if self.first.as_ref().unwrap().arity() == 0 {
             return Some(Box::new(self.first.clone().unwrap()));
         }
@@ -231,27 +315,6 @@ impl Ctrs {
 #[pymethods]
 impl Ctrs {
     fn __getattr__(&self, name: Bound<PyAny>) -> PyResult<pyo3::PyObject> {
-        let py = name.py();
-
-        if let Some(name) = name.to_string().strip_suffix("_t") {
-            let index = self.fields.get_index_of(name).unwrap();
-
-            let res = match index {
-                0 => Ctr1::type_object_bound(py),
-                1 => Ctr2::type_object_bound(py),
-                2 => Ctr3::type_object_bound(py),
-                3 => Ctr4::type_object_bound(py),
-                4 => Ctr5::type_object_bound(py),
-                _ => {
-                    return new_err(
-                        "Type can only have up to 5 constructors".to_string(),
-                    )
-                }
-            };
-
-            return Ok(res.to_object(py));
-        }
-
         if let Some(val) = self.fields.get(&name.to_string()) {
             Ok(val.clone())
         } else {
@@ -260,39 +323,106 @@ impl Ctrs {
     }
 }
 
+/// Represents the available runtime options for executing Bend code
+///
+/// Bend supports three different runtimes: Rust, C, and CUDA. This enum allows
+/// users to specify their preferred runtime for code execution.
+///
+/// # Variants
+///
+/// * `Rust` - The default Rust runtime
+/// * `C` - The C runtime
+/// * `Cuda` - The CUDA runtime (Note: not optimized for most video cards)
+///
+/// # Notes
+///
+/// - Rust is the default runtime and is generally recommended for most use cases.
+/// - The C runtime is provided as an alternative option.
+/// - The CUDA runtime is available but may not be optimized for the majority of video cards.
+///
+/// This enum implements `Clone`, `Debug`, and `Default` traits. The `Default` implementation
+/// returns `BendRuntime::Rust`.
 #[pyclass]
 #[derive(Clone, Debug, Default)]
-pub enum BendCommand {
+pub enum BendRuntime {
     #[default]
     Rust,
     C,
     Cuda,
 }
 
-impl Display for BendCommand {
+impl Display for BendRuntime {
+    /// Implements the `Display` trait for `BendRuntime`
+    ///
+    /// This implementation allows `BendRuntime` variants to be converted into
+    /// string representations that correspond to the actual command used to run
+    /// the Bend code with the specified runtime.
+    ///
+    /// # Returns
+    ///
+    /// A `String` representing the command for the chosen runtime:
+    /// - `"run"` for `BendRuntime::Rust`
+    /// - `"run-c"` for `BendRuntime::C`
+    /// - `"run-cu"` for `BendRuntime::Cuda`
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BendCommand::Rust => f.write_str("run"),
-            BendCommand::C => f.write_str("run-c"),
-            BendCommand::Cuda => f.write_str("run-cu"),
+            BendRuntime::Rust => f.write_str("run"),
+            BendRuntime::C => f.write_str("run-c"),
+            BendRuntime::Cuda => f.write_str("run-cu"),
         }
     }
 }
 
+/// Represents a Bend function definition
+///
+/// This struct holds information about a Bend function, including its name, arity,
+/// and the runtime command to be used for execution.
+///
+/// # Fields
+///
+/// * `arity` - The number of arguments the function expects
+/// * `name` - The name of the function
+/// * `cmd` - An optional `BendRuntime` specifying the runtime to use for execution
 #[pyclass(name = "Definition")]
 #[derive(Clone, Debug, Default)]
 pub struct Definition {
     arity: usize,
     name: String,
-    cmd: Option<BendCommand>,
+    cmd: Option<BendRuntime>,
 }
 
 #[pymethods]
 impl Definition {
+    /// Returns a string representation of the Definition
+    ///
+    /// # Returns
+    ///
+    /// A string in the format "Bend function: name(arity)"
     fn __str__(&self) -> String {
         format!("Bend function: {}({})", self.name, self.arity)
     }
 
+    /// Calls the Bend function with the given arguments
+    ///
+    /// This method executes the Bend function, handling argument processing,
+    /// function call setup, and result parsing.
+    ///
+    /// # Arguments
+    ///
+    /// * `args` - A tuple of Python arguments passed to the function;
+    ///
+    /// # Returns
+    ///
+    /// A `Term` containing the result of the function execution, that can be parsed into a ADT
+    /// using `to_adt()` method.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The number of arguments doesn't match the function's arity
+    /// - The global Bend book is not available
+    /// - The HVM output cannot be parsed
+    /// - The function execution fails for any reason
     #[pyo3(signature = (*args))]
     fn __call__(&mut self, args: Bound<'_, PyTuple>) -> PyResult<Py<PyAny>> {
         let py = args.py();
@@ -405,15 +535,40 @@ impl Definition {
     }
 }
 
+/// Represents a collection of Bend function definitions
+///
+/// This struct holds multiple Bend function definitions and provides a way to
+/// retrieve them by name.
+///
+/// # Fields
+///
+/// * `defs` - An IndexMap of function names to their corresponding `Definition`s;
+/// * `cmd` - An optional `BendRuntime` specifying the preferred runtime for all definitions;
 #[pyclass(name = "Definitions")]
 #[derive(Clone, Debug, Default)]
 pub struct Definitions {
     defs: IndexMap<String, Definition>,
-    cmd: Option<BendCommand>,
+    cmd: Option<BendRuntime>,
 }
 
 #[pymethods]
 impl Definitions {
+    /// Retrieves a Definition by its name
+    ///
+    /// This method allows accessing individual function definitions as attributes
+    /// of the Definitions object.
+    ///
+    /// # Arguments
+    ///
+    /// * `object` - A `Bound<PyAny>` representing the attribute name (function name);
+    ///
+    /// # Returns
+    ///
+    /// A `Definition` containing the requested Definition
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the requested function definition is not found
     fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<Py<Definition>> {
         let binding = object.to_string();
         let field = binding.as_str();
@@ -429,6 +584,9 @@ impl Definitions {
     }
 }
 
+/// Represents a collection of Algebraic Data Types (ADTs) in Bend
+///
+/// This struct holds multiple ADTs, each represented by a `Ctrs` object.
 #[pyclass(name = "Adt")]
 #[derive(Clone, Debug)]
 pub struct Adts {
@@ -436,6 +594,11 @@ pub struct Adts {
 }
 
 impl Adts {
+    /// Creates a new, empty Adts collection
+    ///
+    /// # Returns
+    ///
+    /// A new `Adts` instance with an empty `IndexMap`
     fn new() -> Self {
         Self {
             adts: IndexMap::new(),
@@ -445,6 +608,19 @@ impl Adts {
 
 #[pymethods]
 impl Adts {
+    /// Retrieves an ADT by its name
+    ///
+    /// # Arguments
+    ///
+    /// * `object` - A `Bound<PyAny>` representing the ADT name
+    ///
+    /// # Returns
+    ///
+    /// A `PyResult<PyObject>` containing the requested ADT as a Python object
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the requested ADT is not found
     fn __getattr__(&self, object: Bound<PyAny>) -> PyResult<PyObject> {
         let binding = object.to_string();
         let field = binding.as_str();
@@ -458,15 +634,31 @@ impl Adts {
     }
 }
 
+/// Represents a Bend Book, containing ADTs and function definitions
+///
+/// This struct is the main container for all Bend-related data, including
+/// Algebraic Data Types (ADTs) and function definitions.
 #[pyclass(name = "Book")]
 #[derive(Clone, Debug)]
 pub struct Book {
     adts: Adts,
     defs: Definitions,
-    cmd: Option<BendCommand>,
+    cmd: Option<BendRuntime>,
 }
 
 impl Book {
+    /// Creates a new Book from a BendBook
+    ///
+    /// This method initializes a Book struct with ADTs and function definitions
+    /// from a BendBook. It also sets up global state for the BendBook and the created Book.
+    ///
+    /// # Arguments
+    ///
+    /// * `bend_book` - A mutable reference to a BendBook
+    ///
+    /// # Returns
+    ///
+    /// A new `Book` instance
     pub fn new(bend_book: &mut BendBook) -> Self {
         let mut adts = Adts::new();
 
@@ -640,10 +832,20 @@ impl Book {
 
 #[pymethods]
 impl Book {
-    fn set_cmd(&mut self, cmd: BendCommand) {
+    /// Sets the runtime command for the Book
+    ///
+    /// # Arguments
+    ///
+    /// * `cmd` - A `BendRuntime` specifying the runtime to use
+    fn set_cmd(&mut self, cmd: BendRuntime) {
         self.cmd = Some(cmd);
     }
 
+    /// Retrieves the ADTs contained in the Book
+    ///
+    /// # Returns
+    ///
+    /// A `PyResult<PyObject>` containing the ADTs as a Python object
     #[getter]
     fn adts(&self) -> PyResult<PyObject> {
         Python::with_gil(|py| {
@@ -652,6 +854,11 @@ impl Book {
         })
     }
 
+    /// Retrieves the function definitions contained in the Book
+    ///
+    /// # Returns
+    ///
+    /// A `PyResult<PyObject>` containing the function definitions as a Python object
     #[getter]
     fn defs(&self) -> PyResult<PyObject> {
         Python::with_gil(|py| {
@@ -661,6 +868,19 @@ impl Book {
         })
     }
 
+    /// Fallback method for attribute access
+    ///
+    /// # Arguments
+    ///
+    /// * `attr_name` - A `Bound<PyAny>` representing the attribute name
+    ///
+    /// # Returns
+    ///
+    /// A `PyResult<PyObject>`
+    ///
+    /// # Errors
+    ///
+    /// Always returns an error, as this is a fallback method for non-existent attributes
     fn __getattr__(&self, attr_name: Bound<PyAny>) -> PyResult<PyObject> {
         let attr_name = attr_name.to_string();
 

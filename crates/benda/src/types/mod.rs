@@ -6,7 +6,6 @@ use num_traits::cast::ToPrimitive;
 use pyo3::types::{PyAnyMethods, PyFloat, PyTypeMethods};
 use pyo3::{Bound, FromPyObject, PyAny, PyErr, PyTypeCheck};
 use rustpython_parser::ast::ExprCall;
-use tree::{Leaf, Node, Tree};
 use u24::U24;
 use user_adt::UserAdt;
 
@@ -14,7 +13,6 @@ pub mod book;
 pub mod f24;
 pub mod fan;
 pub mod i24;
-pub mod tree;
 pub mod u24;
 pub mod user_adt;
 
@@ -83,9 +81,6 @@ pub fn extract_type(arg: Bound<PyAny>, book: &Book) -> BendResult {
         BuiltinType::U24 => extract_inner::<U24>(arg).unwrap().to_bend(),
         BuiltinType::I32 => extract_num(arg, BuiltinType::I32),
         BuiltinType::F32 => extract_num(arg, BuiltinType::F32),
-        BuiltinType::Tree => extract_inner::<Tree>(arg).unwrap().to_bend(),
-        BuiltinType::Node => extract_inner::<Node>(arg).unwrap().to_bend(),
-        BuiltinType::Leaf => extract_inner::<Leaf>(arg).unwrap().to_bend(),
         BuiltinType::UserAdt => UserAdt::new(arg, book).unwrap().to_bend(),
     }
 }
@@ -144,9 +139,6 @@ pub enum BuiltinType {
     F32,
     #[allow(dead_code)]
     I32,
-    Tree,
-    Leaf,
-    Node,
     UserAdt,
 }
 
@@ -168,9 +160,6 @@ impl From<String> for BuiltinType {
             "int" => BuiltinType::U24,
             "benda.u24" => BuiltinType::U24,
             "u24" => BuiltinType::U24,
-            "benda.Node" => BuiltinType::Node,
-            "benda.Leaf" => BuiltinType::Leaf,
-            "benda.Tree" => BuiltinType::Tree,
             _ => BuiltinType::UserAdt,
         }
     }
