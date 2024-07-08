@@ -1,25 +1,13 @@
-from typing import TypeVar
-import random
-
-from .quicksort_mock import u24, List_Cons, List_Nil, mock_sort
-from .quicksort_mock import List as ListMock
-
-T = TypeVar("T")
-
-
 import benda
-from benda import U24
+import random
 book = benda.load_book_from_file("./examples/quicksort.bend")
 List = book.adts.List
-# List_Nil = book.adts.List.Nil
-# List_Cons = book.adts.List.Cons
 
-
-def gen_list(n: int, max_value: int = 0xffffff) -> list[u24]:
+def gen_list(n: int, max_value: int = 0xffffff) -> list[int]:
     """Generates an array of random u24 numbers with the `random` package"""
-    result: list[u24] = []
+    result: list[int] = []
     for _ in range(n):
-        result.append(u24(random.randint(0, max_value)))
+        result.append(int(random.randint(0, max_value)))
     return result
 
 
@@ -33,30 +21,18 @@ def to_cons_list(xs: list[int]):
 
     while hi > 0:
         hi -= 1
-        result = List.Cons(u24(xs[hi]), result)
+        result = List.Cons(int(xs[hi]), result)
 
     return result
 
-# Ideal Syntax:
-#def from_cons_list(xs: List[u24]) -> list[u24]:
-#    """Converts a Bend cons-list to a Python list"""
-#    result: list[u24] = []
-#    while True:
-#        match xs:
-#            case List_Nil():
-#                return result
-#            case List_Cons(value, tail):
-#                result.append(value)
-#                xs = tail
-
-def from_cons_list(xs) -> list[u24]:
+def from_cons_list(xs) -> list[int]:
     """Converts a Bend cons-list to a Python list"""
-    result: list[u24] = []
+    result: list[int] = []
     while True:
         match xs:
-            case List.tNil():
+            case List.Nil.type():
                 return result
-            case List.tCons(value, tail):
+            case List.Cons.type(value, tail):
                 result.append(value)
                 xs = tail
 
@@ -64,10 +40,10 @@ def print_list(list):
     print("[", end="")
     while True:
         match list:
-            case book.adts.List.tCons(value, tail):
+            case book.adts.List.Cons.type(value, tail):
                 print(value, end=", ")
                 list = tail
-            case book.adts.List.tNil():
+            case book.adts.List.Nil.type():
                 break
     print("]")
 

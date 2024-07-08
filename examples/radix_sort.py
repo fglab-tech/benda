@@ -1,7 +1,4 @@
-import random
-
 import benda
-from benda import U24 as u24
 book = benda.load_book_from_file("./examples/radix_sort.bend")
 Arr = book.adts.Arr
 

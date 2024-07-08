@@ -22,10 +22,10 @@ def print_list(list):
     print("[", end="")
     while True:
         match list:
-            case book.adts.List.tCons(value, tail):
+            case book.adts.List.Cons.type(value, tail):
                 print(value, end=", ")
                 list = tail
-            case book.adts.List.tNil():
+            case book.adts.List.Nil.type():
                 break
     print("]")
 

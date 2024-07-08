@@ -28,11 +28,11 @@ def to_cons_list(xs: list[int]):
 
 def print_tree(tree):
     match tree:
-        case book.adts.MyTree.tNode(left, value,right):
+        case book.adts.MyTree.Node.type(left, value,right):
             print_tree(left)
             print(value, end= ", ")
             print_tree(right)
-        case book.adts.MyTree.tLeaf():
+        case book.adts.MyTree.Leaf.type():
             return
 
 

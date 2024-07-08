@@ -1,6 +1,6 @@
 [package]
 name = "benda"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -8,12 +8,9 @@ edition = "2021"
 name = "benda"
 crate-type = ["cdylib"]
 
-# Enable the `experimental-inspect` feature to be able to generate Typing to Python.
+# "extension-module" feature is required to publish the module to PyPi.
 [dependencies]
-pyo3 = { version = "0.21.2", features = [
-    "extension-module",
-    "experimental-inspect",
-] }
+pyo3 = { version = "0.21.2", features = ["extension-module"] }
 bend-lang = "=0.2.33"
 num-bigint = "0.4.5"
 num-traits = "0.2.19"
