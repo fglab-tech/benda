@@ -6,8 +6,7 @@
 [HVM]: https://github.com/HigherOrderCo/hvm
 [Bend]: https://github.com/HigherOrderCo/bend
 
-Read the Docs:<br>
-[FFI](/docs/FFI.md)
+[Read the Docs](/docs/FFI.md)
 
 This is in MVP stage.
 
