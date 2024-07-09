@@ -1,5 +1,7 @@
 [package]
 name = "benda"
+description = "Use Bend language functions and capabilities in Python!"
+license = "MIT"
 version = "0.1.1"
 edition = "2021"
 
@@ -7,6 +9,7 @@ edition = "2021"
 [lib]
 name = "benda"
 crate-type = ["cdylib"]
+
 
 # "extension-module" feature is required to publish the module to PyPi.
 [dependencies]
