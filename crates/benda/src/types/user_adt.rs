@@ -46,7 +46,7 @@ fn num_to_i32(num: &Num) -> Option<i32> {
     }
 }
 
-/// Represents parsed terms from Bend
+/// Represents parsed terms from Bend lambda encoding.
 ///
 /// This enum is used to represent different types of terms that can be parsed from Bend expressions.
 ///
@@ -56,11 +56,11 @@ pub enum TermParse {
     I32(i32),
     ///  - A constructor for an ADT
     Ctr(Box<dyn BendCtr>),
-    ///  - Any Python object
+    ///  - A Python object representing an argument
     Any(Py<PyAny>),
-    ///  - A vector of Python objects with an associated constructor
+    ///  - A vector of Python objects representing arguments with an associated constructor
     Vec(Box<dyn BendCtr>, Vec<Py<PyAny>>),
-    ///  A vector of Python objects representing arguments
+    ///  - A vector of Python objects representing arguments
     Args(Vec<Py<PyAny>>),
 }
 
