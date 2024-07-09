@@ -1,11 +1,3 @@
 [workspace]
 resolver = "2"
 members = ["crates/*"]
-
-[workspace.package]
-name = "benda"
-readme = "./README.md"
-description = "Use Bend language functions and capabilities in Python!"
-license = "MIT"
-publish = true
-version = "0.1.1"
