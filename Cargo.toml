@@ -1,3 +1,13 @@
 [workspace]
 resolver = "2"
 members = ["crates/*"]
+
+[lib]
+path = "crates/benda"
+
+[package]
+name = "Benda"
+description = "Use Bend language functions and capabilities in Python!"
+license = "MIT"
+publish = true
+version = "0.1.1"
