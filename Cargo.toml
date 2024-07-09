@@ -2,11 +2,9 @@
 resolver = "2"
 members = ["crates/*"]
 
-[lib]
-path = "crates/benda/lib.rs"
-
-[package]
-name = "Benda"
+[workspace.package]
+name = "benda"
+readme = "./README.md"
 description = "Use Bend language functions and capabilities in Python!"
 license = "MIT"
 publish = true
