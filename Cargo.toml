@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*"]
 
 [lib]
-path = "crates/benda"
+path = "crates/benda/lib.rs"
 
 [package]
 name = "Benda"
