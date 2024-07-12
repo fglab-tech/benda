@@ -1,7 +1,9 @@
 use std::ops::{Add, Sub};
 
 use bend::imp;
-use pyo3::{pyclass, pymethods};
+use num_traits::ToPrimitive;
+use pyo3::basic::CompareOp;
+use pyo3::{pyclass, pymethods, PyResult};
 
 use super::{BendResult, BendType};
 
@@ -90,5 +92,24 @@ impl U24 {
 
     fn __str__(&self) -> String {
         self.0.to_string()
+    }
+
+    fn __repr__(&self) -> String {
+        self.0.to_string()
+    }
+
+    fn __int__(&self) -> i32 {
+        self.0.to_i32().unwrap()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp) -> PyResult<bool> {
+        match op {
+            pyclass::CompareOp::Lt => Ok(self < other),
+            pyclass::CompareOp::Le => Ok(self <= other),
+            pyclass::CompareOp::Eq => Ok(self == other),
+            pyclass::CompareOp::Ne => Ok(self != other),
+            pyclass::CompareOp::Gt => Ok(self > other),
+            pyclass::CompareOp::Ge => Ok(self >= other),
+        }
     }
 }

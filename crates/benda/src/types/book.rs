@@ -136,8 +136,11 @@ macro_rules! generate_structs {
             #[classattr]
             fn __match_args__() -> PyResult<Py<PyAny>> {
                 Python::with_gil(|py| {
-                    Ok(PyTuple::new_bound(py, vec!["1", "2", "3", "4", "5"])
-                        .into_py(py))
+                    Ok(PyTuple::new_bound(
+                        py,
+                        vec!["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+                    )
+                    .into_py(py))
                 })
             }
 
@@ -507,8 +510,9 @@ impl Definition {
             b.defs
                 .insert(Name::new("main"), main_def.to_fun(true).unwrap());
 
+            println!("{}", b.display_pretty());
             let res = benda_ffi::run(
-                &b.clone(),
+                &b,
                 &self.cmd.clone().unwrap_or_default().to_string(),
             );
 

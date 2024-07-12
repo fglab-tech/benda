@@ -158,8 +158,8 @@ impl From<String> for BuiltinType {
         match value.as_str() {
             "float" => BuiltinType::F32,
             "int" => BuiltinType::U24,
-            "benda.u24" => BuiltinType::U24,
-            "u24" => BuiltinType::U24,
+            "benda.U24" => BuiltinType::U24,
+            "U24" => BuiltinType::U24,
             _ => BuiltinType::UserAdt,
         }
     }
@@ -184,7 +184,6 @@ impl BendType for f32 {
 impl BendType for i32 {
     fn to_bend(&self) -> BendResult {
         Ok(imp::Expr::Num {
-            //val: Num::I24(*self),
             val: Num::I24(*self),
         })
     }

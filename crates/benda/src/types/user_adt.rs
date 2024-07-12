@@ -19,7 +19,7 @@
 
 use std::vec;
 
-use bend::fun::{Adt as BAdt, Book, Name, Num, Term as BTerm};
+use bend::fun::{Book, Name, Num, Term as BTerm};
 use bend::imp::{self};
 use num_traits::ToPrimitive;
 use pyo3::types::{PyAnyMethods, PyString, PyTuple};
@@ -228,14 +228,13 @@ pub fn from_term_into_adt(term: &BTerm, def_adts: &Ctrs) -> Option<TermParse> {
 /// * `data` - The Python data associated with this ADT instance
 /// * `book` - The Bend book containing ADT definitions
 #[derive(Debug, Clone)]
-pub struct UserAdt<'py> {
-    adt: BAdt,
+pub struct UserAdt<'py, 'book> {
+    book: &'book Book,
     full_name: Name,
     data: Bound<'py, PyAny>,
-    book: Book,
 }
 
-impl<'py> UserAdt<'py> {
+impl<'py, 'book> UserAdt<'py, 'book> {
     /// Creates a new UserAdt instance
     ///
     /// # Arguments
@@ -251,7 +250,7 @@ impl<'py> UserAdt<'py> {
     ///
     /// This function attempts to create a UserAdt by matching the Python data's `__ctr_type__`
     /// attribute with ADT definitions in the provided Bend book.
-    pub fn new(data: Bound<'py, PyAny>, book: &Book) -> Option<Self> {
+    pub fn new(data: Bound<'py, PyAny>, book: &'book Book) -> Option<Self> {
         if data.is_none() {
             return None;
         }
@@ -264,18 +263,12 @@ impl<'py> UserAdt<'py> {
         if let Ok(binding) = data.getattr("__ctr_type__") {
             for (nam, _ctr) in &book.ctrs {
                 let new_nam = nam.to_string();
-                let two_names = new_nam.split_once('/').unwrap();
 
                 if nam.to_string() == binding.to_string() {
                     return Some(Self {
-                        book: book.clone(),
+                        book,
                         data,
                         full_name: Name::new(new_nam.clone()),
-                        adt: book
-                            .adts
-                            .get(&Name::new(two_names.0.to_string()))
-                            .unwrap()
-                            .clone(),
                     });
                 }
             }
@@ -295,10 +288,16 @@ impl<'py> UserAdt<'py> {
 ///
 /// This method recursively converts the UserAdt and its fields into a Bend expression,
 /// handling nested ADTs and other field types.
-impl<'py> BendType for UserAdt<'py> {
+impl<'py, 'book> BendType for UserAdt<'py, 'book> {
     fn to_bend(&self) -> super::BendResult {
-        for (nam, fields) in &self.adt.ctrs {
-            if *nam == self.full_name {
+        let binding = self.full_name.to_string();
+        let name = binding.split("/").next().unwrap();
+        let adt = self.book.adts.get(&Name::new(name)).unwrap();
+
+        dbg!(binding);
+
+        for (nam, fields) in adt.ctrs.iter() {
+            if nam.to_string() == self.full_name.to_string() {
                 let mut adt_fields: Vec<imp::Expr> = vec![];
 
                 for field in fields {
@@ -313,7 +312,7 @@ impl<'py> BendType for UserAdt<'py> {
 
                     if let Some(t) = extract_type_raw(attr.clone()) {
                         adt_fields.push(t.to_bend().unwrap());
-                    } else if let Some(adt) = UserAdt::new(attr, &self.book) {
+                    } else if let Some(adt) = UserAdt::new(attr, self.book) {
                         let new_adt = adt.to_bend();
                         adt_fields.push(new_adt.unwrap());
                     } else {
