@@ -15,7 +15,7 @@ crate-type = ["cdylib"]
 # "extension-module" feature is required to publish the module to PyPi.
 [dependencies]
 pyo3 = { version = "0.21.2", features = ["extension-module"] }
-bend-lang = "=0.2.33"
+bend-lang = "=0.2.36"
 num-bigint = "0.4.5"
 num-traits = "0.2.19"
 rustpython-parser = "0.3.1"
