@@ -1,6 +1,41 @@
+//! # Bend Integration Module
+//!
+//! This Rust module provides core functionality for integrating Bend, a specialized programming language, with Python.
+//! It facilitates the execution of Bend code within a Python environment.
+//!
+//! ## Key Components
+//!
+//! - **Term Handling**: Structures and methods for working with Bend terms, including conversion to ADTs (Algebraic Data Types).
+//! - **ADT Management**: Comprehensive support for Bend ADTs, including constructors and field management.
+//! - **Function Definitions**: Structures for representing and executing Bend function definitions.
+//! - **Runtime Options**: Enumeration of available runtimes (Rust, C, CUDA) for Bend code execution.
+//! - **Book Representation**: A high-level structure (`Book`) that encapsulates ADTs and function definitions, serving as the main container for Bend-related data.
+//! - **Python Integration**: Various utilities and methods to seamlessly interact with Bend constructs from Python code.
+//!
+//! ## Core Structures
+//!
+//! - `Term`: Represents HVM output in lambda encoding.
+//! - `Ctrs`: Represents Bend ADTs with up to 8 constructors.
+//! - `Definition` and `Definitions`: Handle individual and collections of Bend function definitions.
+//! - `Adts`: Manages collections of Bend ADTs.
+//! - `Book`: The primary structure holding all Bend-related components.
+//!
+//! ## Functionality
+//!
+//! - Convert between Bend lambda encoded terms and ADTs.
+//! - Execute Bend functions with various runtime options.
+//! - Manage and access Bend ADTs and function definitions.
+//! - Provide a Pythonic interface to Bend constructs.
+//!
+//! This module forms the backbone of the Bend-Python integration, allowing developers to leverage Bend's capabilities within Python projects efficiently.
+
 use core::panic;
 use std::cell::RefCell;
 use std::fmt::Display;
+use std::fs::File;
+use std::io::Write;
+use std::path::Path;
+use std::process::Command;
 use std::vec;
 
 use bend::fun::{self, Book as BendBook, Name, Rule};
@@ -89,7 +124,7 @@ impl Term {
                 if let Some(adt) = adt {
                     match adt {
                         super::user_adt::TermParse::I32(val) => {
-                            println!("val {}", val)
+                            return Ok(val.into_py(py))
                         }
                         super::user_adt::TermParse::Any(any) => {
                             let list = any.extract::<Ctr2>(py);
@@ -510,7 +545,6 @@ impl Definition {
             b.defs
                 .insert(Name::new("main"), main_def.to_fun(true).unwrap());
 
-            println!("{}", b.display_pretty());
             let res = benda_ffi::run(
                 &b,
                 &self.cmd.clone().unwrap_or_default().to_string(),
@@ -651,14 +685,14 @@ pub struct Book {
 }
 
 impl Book {
-    /// Creates a new Book from a BendBook
+    /// Creates a new Book from a Bend Book
     ///
     /// This method initializes a Book struct with ADTs and function definitions
-    /// from a BendBook. It also sets up global state for the BendBook and the created Book.
+    /// from a Bend Book. It also sets up global state for the Bend Book and the created Book.
     ///
     /// # Arguments
     ///
-    /// * `bend_book` - A mutable reference to a BendBook
+    /// * `bend_book` - A mutable reference to a Bend Book
     ///
     /// # Returns
     ///

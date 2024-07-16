@@ -294,8 +294,6 @@ impl<'py, 'book> BendType for UserAdt<'py, 'book> {
         let name = binding.split("/").next().unwrap();
         let adt = self.book.adts.get(&Name::new(name)).unwrap();
 
-        dbg!(binding);
-
         for (nam, fields) in adt.ctrs.iter() {
             if nam.to_string() == self.full_name.to_string() {
                 let mut adt_fields: Vec<imp::Expr> = vec![];

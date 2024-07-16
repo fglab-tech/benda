@@ -18,6 +18,10 @@ build:
 	cd crates/benda; \
 		maturin develop --release
 
+build_debug:
+	cd crates/benda; \
+		maturin develop
+
 run_examples:
 	python -m examples.quicksort
 	python -m examples.radix_sort
