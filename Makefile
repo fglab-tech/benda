@@ -18,7 +18,7 @@ build:
 	cd crates/benda; \
 		maturin develop --release
 
-build_debug:
+debug:
 	cd crates/benda; \
 		maturin develop
 
