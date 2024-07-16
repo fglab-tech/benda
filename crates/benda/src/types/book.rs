@@ -32,10 +32,6 @@
 use core::panic;
 use std::cell::RefCell;
 use std::fmt::Display;
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
-use std::process::Command;
 use std::vec;
 
 use bend::fun::{self, Book as BendBook, Name, Rule};
