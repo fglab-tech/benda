@@ -11,10 +11,8 @@ readme = "../../README.md"
 name = "benda"
 crate-type = ["cdylib"]
 
-
 # "extension-module" feature is required to publish the module to PyPi.
 [dependencies]
-pyo3 = { version = "0.21.2", features = ["extension-module"] }
 bend-lang = "=0.2.36"
 num-bigint = "0.4.5"
 num-traits = "0.2.19"
@@ -22,3 +20,10 @@ rustpython-parser = "0.3.1"
 # Bend uses a indexmap to store its ADTs.
 # So we need to use this dependency to be able to construct one.
 indexmap = "2.2.3"
+
+[dependencies.pyo3]
+version = "=0.21.2"
+
+[features]
+extension-module = ["pyo3/extension-module"]
+default = ["extension-module"]

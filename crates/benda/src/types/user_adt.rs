@@ -255,11 +255,6 @@ impl<'py, 'book> UserAdt<'py, 'book> {
             return None;
         }
 
-        // TODO: make check for every Ctr
-        //if data.clone().get_type().qualname().unwrap() != "Ctr" {
-        //    return None;
-        //}
-
         if let Ok(binding) = data.getattr("__ctr_type__") {
             for (nam, _ctr) in &book.ctrs {
                 let new_nam = nam.to_string();

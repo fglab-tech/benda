@@ -3,11 +3,12 @@ use std::ops::{Add, Sub};
 use bend::imp;
 use num_traits::ToPrimitive;
 use pyo3::basic::CompareOp;
+use pyo3::exceptions::PyZeroDivisionError;
 use pyo3::{pyclass, pymethods, PyResult};
 
 use super::{BendResult, BendType};
 
-#[pyclass(module = "benda")]
+#[pyclass(module = "benda", name = "u24")]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct U24(u32);
 
@@ -90,6 +91,24 @@ impl U24 {
         U24::sub(*self, *other)
     }
 
+    fn __mul__(&self, other: &Self) -> Self {
+        Self(self.0.wrapping_mul(other.0))
+    }
+
+    fn __truediv__(&self, other: &Self) -> PyResult<Self> {
+        match self.0.checked_div(other.0) {
+            Some(i) => Ok(Self(i)),
+            None => Err(PyZeroDivisionError::new_err("division by zero")),
+        }
+    }
+
+    fn __floordiv__(&self, other: &Self) -> PyResult<Self> {
+        match self.0.checked_div(other.0) {
+            Some(i) => Ok(Self(i)),
+            None => Err(PyZeroDivisionError::new_err("division by zero")),
+        }
+    }
+
     fn __str__(&self) -> String {
         self.0.to_string()
     }
@@ -111,5 +130,79 @@ impl U24 {
             pyclass::CompareOp::Gt => Ok(self > other),
             pyclass::CompareOp::Ge => Ok(self >= other),
         }
+    }
+}
+
+#[cfg(test)]
+mod u24_tests {
+    use core::panic;
+    use std::fmt::format;
+    use std::fs::File;
+    use std::path::Path;
+
+    use bend::fun::Term;
+    use bend::run_book;
+    use indexmap::IndexMap;
+
+    use super::*;
+    use crate::benda_ffi;
+    use crate::types::book::{BendRuntime, Ctrs};
+    use crate::types::user_adt::{from_term_into_adt, TermParse};
+
+    fn run_bend_code(code: &str) -> Term {
+        let code = format!("(Main) = ({})", code);
+
+        let path = Path::new("bend.tmp");
+        let _ = File::create_new(path);
+
+        let book = bend::fun::load_book::do_parse_book(
+            code.as_str(),
+            path,
+            bend::fun::Book::builtins(),
+        );
+
+        if let Ok(res) = benda_ffi::run(
+            &book.unwrap(),
+            BendRuntime::Rust.to_string().as_str(),
+        ) {
+            match res {
+                Some((ter, _, _)) => return ter,
+                None => {
+                    panic!("Could not get result from HVM")
+                }
+            }
+        }
+        panic!("Could not get result from HVM")
+    }
+
+    fn extract_i32(term: &Term) -> i32 {
+        let res = from_term_into_adt(term, &Ctrs::default());
+
+        match res {
+            Some(TermParse::I32(val)) => val,
+            _ => {
+                todo!()
+            }
+        }
+    }
+
+    #[test]
+    fn overflow() {
+        let bend_res = run_bend_code("(<< 1 25)");
+        let benda_res = U24::new(1 << 25);
+
+        let bend_res = extract_i32(&bend_res);
+
+        assert_eq!(bend_res.to_u32().unwrap(), benda_res.0);
+    }
+
+    #[test]
+    fn sum() {
+        let bend_res = run_bend_code("(+ 25 10)");
+        let benda_res = U24::new(25 + 10);
+
+        let bend_res = extract_i32(&bend_res);
+
+        assert_eq!(bend_res.to_u32().unwrap(), benda_res.0);
     }
 }
