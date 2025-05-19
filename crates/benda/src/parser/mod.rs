@@ -24,20 +24,6 @@ enum FromExpr {
 }
 
 impl FromExpr {
-    pub fn to_expr(&self) -> Option<Expr> {
-        if let FromExpr::Expr(exp) = self {
-            return Some(exp.clone());
-        }
-        None
-    }
-
-    pub fn to_stmt(&self) -> Option<Stmt> {
-        if let FromExpr::Statement(stmt) = self {
-            return Some(stmt.clone());
-        }
-        None
-    }
-
     pub fn get_var_name(&self) -> Option<Name> {
         if let FromExpr::Expr(Expr::Var { nam }) = self {
             Some(nam.clone())
@@ -64,21 +50,18 @@ pub struct Parser<'py> {
     book: Book,
     definitions: Vec<imp::Definition>,
     ctx: Option<Context>,
-    index: usize,
     fun_args: Vec<(String, Bound<'py, PyAny>)>,
 }
 
 impl<'py> Parser<'py> {
     pub fn new(
         statements: Vec<rStmt>,
-        index: usize,
         fun_args: Vec<(String, Bound<'py, PyAny>)>,
     ) -> Self {
         Self {
             statements,
             book: bend::fun::Book::builtins(),
             definitions: vec![],
-            index,
             ctx: None,
             fun_args,
         }
@@ -488,7 +471,7 @@ impl<'py> Parser<'py> {
                 }
             }
 
-            if ctx.now == CurContext::Main && !ctx.vars.contains(&name) {
+            if ctx.now == CurContext::Main && !ctx.vars.contains(name) {
                 return self.parse_vec(stmts, index + 1);
             }
         }
@@ -530,12 +513,7 @@ impl<'py> Parser<'py> {
         }
     }
 
-    fn parse_stmt_expr(
-        &mut self,
-        expr: &StmtExpr,
-        stmts: &Vec<rStmt>,
-        index: usize,
-    ) -> Option<FromExpr> {
+    fn parse_stmt_expr(&mut self, expr: &StmtExpr) -> Option<FromExpr> {
         if let Some(ctx) = &self.ctx {
             if ctx.now == CurContext::Main {
                 let val = self.parse_expr_type(*expr.value.clone());
@@ -649,7 +627,7 @@ impl<'py> Parser<'py> {
                 }
                 None => None,
             },
-            rStmt::Expr(expr) => self.parse_stmt_expr(expr, stmts, index),
+            rStmt::Expr(expr) => self.parse_stmt_expr(expr),
             rStmt::Match(m) => {
                 if let Some(val) = self.parse_match(m, stmts, &index) {
                     return Some(FromExpr::Statement(val));
@@ -745,7 +723,7 @@ impl<'py> Parser<'py> {
 
         for arg in parsed_types.clone() {
             match arg.1 {
-                imp::Expr::Var { nam } => {}
+                imp::Expr::Var { nam: _ } => {}
                 _ => new_args.push(Expr::Var {
                     nam: Name::new(arg.0),
                 }),
@@ -762,13 +740,11 @@ impl<'py> Parser<'py> {
             }),
         };
 
-        return Some(imp::Definition {
+        Some(imp::Definition {
             name: Name::new("main"),
             params: vec![],
             body: first,
-        });
-
-        None
+        })
     }
 
     fn parse_class_def(&mut self, class: &StmtClassDef) {
@@ -859,20 +835,6 @@ impl<'py> Parser<'py> {
     }
 
     fn parse_function_def(&mut self, fun_def: &StmtFunctionDef) {
-        let mut is_bjit = false;
-
-        for dec in &fun_def.decorator_list {
-            if let rExpr::Name(nam) = dec {
-                if nam.id.to_string() == "bjit" {
-                    is_bjit = true;
-                }
-            }
-        }
-
-        //if !is_bjit {
-        //return;
-        //}
-
         let args = *fun_def.args.clone();
         let mut names: Vec<Name> = vec![];
 
@@ -893,14 +855,19 @@ impl<'py> Parser<'py> {
     }
 
     // Main function of the library, it parses the Python Module
-    pub fn parse(&mut self, fun: &str, py_args: &[String]) -> String {
+    pub fn parse(
+        &mut self,
+        fun: &str,
+        py_args: &[String],
+    ) -> Result<String, String> {
         for stmt in self.statements.clone() {
             match stmt {
                 rStmt::FunctionDef(fun_def) => {
                     self.parse_function_def(&fun_def)
                 }
-                // Treats a type alias, example: Type = A | B
+                // Treats an type alias, example: Type = A | B
                 rStmt::Assign(assign) => self.parse_type_alias(&assign),
+                // Treats an dataclass case
                 rStmt::ClassDef(class) => self.parse_class_def(&class),
                 _ => {}
             }
@@ -922,11 +889,15 @@ impl<'py> Parser<'py> {
 
         //println!("BEND:\n {}", self.book.display_pretty());
 
-        let return_val = run(&self.book);
+        let return_val = run(&self.book, "run");
 
         match return_val {
-            Some(val) => val.0.to_string(),
-            None => panic!("Could not run Bend code."),
+            Ok(val) => match val {
+                Some(val) => Ok(val.0.to_string()),
+                None => Err(String::from("Could not parse HVM output")),
+            },
+
+            Err(e) => Err(e.to_string()),
         }
     }
 }

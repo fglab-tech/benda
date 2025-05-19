@@ -18,8 +18,10 @@ class MyNode:
 MyTree = MyNode | MyLeaf
 
 
-@bjit
 def sum_tree(tree: MyTree) -> u24:
+    """
+    Recursively sum the values of the tree.
+    """
     match tree:
         case MyLeaf(value):
             return value
